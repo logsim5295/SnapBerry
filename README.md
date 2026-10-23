@@ -2,13 +2,13 @@
 
 Windows 개인 업무용 화면 캡처 및 주석 편집 앱입니다. C#/.NET 10과 WPF로 구현했습니다.
 
-**Windows 다운로드:** [최신 릴리스](https://github.com/simlog1234/SnapBerry/releases/latest) · [v1.1.0 ZIP](https://github.com/simlog1234/SnapBerry/releases/download/v1.1.0/SnapBerry-v1.1.0-win-x64.zip) · [최신 EXE](https://github.com/simlog1234/SnapBerry/releases/latest/download/SnapBerry.exe)
+**Windows 다운로드:** [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest) · [v1.1.0 ZIP](https://github.com/logsim5295/SnapBerry/releases/download/v1.1.0/SnapBerry-v1.1.0-win-x64.zip) · [최신 EXE](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry.exe)
 
-**macOS 다운로드:** [Apple Silicon DMG](https://github.com/simlog1234/SnapBerry/releases/download/v1.1.0/SnapBerry-macos-arm64.dmg) · [Intel DMG](https://github.com/simlog1234/SnapBerry/releases/download/v1.1.0/SnapBerry-macos-x64.dmg)
+**macOS 다운로드:** [Apple Silicon DMG](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-arm64.dmg) · [Intel DMG](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-x64.dmg)
 
 macOS용 Avalonia 시험 버전도 별도 프로젝트로 추가했습니다. 영역·창·전체 화면 캡처, 주석 편집·이력·PNG 저장과 Command+C/V 클립보드, 한국어 스티커, 설정 가능한 전역 캡처 단축키와 메뉴 막대 상주를 제공합니다. Apple Silicon·Intel 모두 GitHub의 맥 환경에서 실제 설치·실행·최초 화면 기록 권한 승인·캡처·클립보드·전역 단축키를 검사합니다. 설치·빌드·지원 기능은 [macOS 안내](docs/macos.md)를 참고하세요.
 
-맥 설치는 위의 CPU별 DMG를 열어 SnapBerry를 응용 프로그램 폴더로 옮긴 뒤 실행합니다. 터미널이나 별도 .NET 설치는 필요하지 않습니다. 현재 Developer ID 서명·공증 전 시험 버전이므로 첫 실행 시 보안 승인이 필요할 수 있습니다. [설치 안내](docs/macos.md#터미널-없이-설치하기)를 참고하세요.
+위 Release 다운로드는 GitHub 로그인 없이 이용할 수 있습니다. 맥 설치는 CPU별 DMG를 열어 SnapBerry를 응용 프로그램 폴더로 옮긴 뒤 실행합니다. 터미널이나 별도 .NET 설치는 필요하지 않습니다. 현재 Developer ID 서명·공증 전 시험 버전이므로 첫 실행 시 보안 승인이 필요할 수 있습니다. [설치 안내](docs/macos.md#터미널-없이-설치하기)를 참고하세요.
 
 GitHub Actions의 `macOS verification`은 두 CPU에서 빌드·헤드리스 테스트·패키지와 네이티브 라이브러리 로딩·DMG 서명을 검사하고 결과와 설치 파일을 보관합니다. 실행 방법과 검증 범위는 [맥 자동 검증 안내](docs/macos.md#github-actions-자동-검증)에 있습니다.
 
@@ -26,17 +26,17 @@ GitHub 공개 저장소는 GitHub 서비스 약관이 허용하는 범위에서 
 
 Windows x64용 포터블 앱입니다. 설치 프로그램, 별도 .NET 설치 또는 관리자 권한이 필요하지 않습니다.
 
-1. [최신 릴리스](https://github.com/simlog1234/SnapBerry/releases/latest)에서 Windows 배포 ZIP을 다운로드합니다. 현재 배포본은 [SnapBerry-v1.1.0-win-x64.zip](https://github.com/simlog1234/SnapBerry/releases/download/v1.1.0/SnapBerry-v1.1.0-win-x64.zip)입니다.
+1. [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest)에서 Windows 배포 ZIP을 다운로드합니다. 현재 배포본은 [SnapBerry-v1.1.0-win-x64.zip](https://github.com/logsim5295/SnapBerry/releases/download/v1.1.0/SnapBerry-v1.1.0-win-x64.zip)입니다.
 2. ZIP 전체를 원하는 폴더에 압축 해제합니다. `SnapBerry.exe`, `LICENSE.txt`, `DATA-PROCESSING.md`, `THIRD-PARTY-NOTICES.md`가 함께 들어 있습니다.
 3. 이용약관과 데이터 처리 안내를 확인한 뒤 `SnapBerry.exe`를 실행합니다. 약관·안내는 앱의 **정보 → 이용약관 및 데이터 처리 안내**에서도 읽을 수 있습니다.
 
-[최신 EXE](https://github.com/simlog1234/SnapBerry/releases/latest/download/SnapBerry.exe)만 다운로드해서 실행할 수도 있습니다. 파일 무결성을 확인하려면 릴리스에 첨부된 `SHA256SUMS.txt`와 다운로드한 파일의 SHA-256을 비교하세요.
+[최신 EXE](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry.exe)만 다운로드해서 실행할 수도 있습니다. 파일 무결성을 확인하려면 릴리스에 첨부된 `SHA256SUMS.txt`와 다운로드한 파일의 SHA-256을 비교하세요.
 
 ## Windows 업데이트
 
 자동 업데이트 기능은 없으며 새 배포본으로 직접 교체합니다.
 
-1. [최신 릴리스](https://github.com/simlog1234/SnapBerry/releases/latest)에서 새 ZIP을 다운로드하고 별도 폴더에 압축 해제합니다.
+1. [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest)에서 새 ZIP을 다운로드하고 별도 폴더에 압축 해제합니다.
 2. 실행 중인 SnapBerry의 트레이 메뉴에서 **종료**를 선택합니다. 창의 닫기 버튼은 트레이에 남기므로 EXE 교체 전에 완전히 종료해야 합니다.
 3. 중요한 이력이 있다면 `%LOCALAPPDATA%\SnapBerry` 폴더를 별도 위치에 복사해 백업합니다.
 4. 기존 실행 폴더의 `SnapBerry.exe`와 안내 문서를 새 파일로 교체한 뒤 실행합니다. 앱의 **정보**에서 버전을 확인할 수 있습니다.
