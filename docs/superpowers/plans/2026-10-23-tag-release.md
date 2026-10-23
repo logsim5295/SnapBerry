@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - 앱을 실행하거나 화면·클립보드·전역 단축키를 조작하는 테스트는 추가하지 않는다.
-- 일반 Release와 로컬 Git LFS EXE를 유지한다. 이번 변경은 CI·배포 도구·문서다.
+- 일반 Release와 로컬 Portable EXE를 유지한다. 배포 파일은 GitHub Releases로만 제공하며 EXE·DMG·설치 ZIP은 Git이나 Git LFS에 추가하지 않는다.
 - 태그는 `vMAJOR.MINOR.PATCH` 형식이며 .NET 버전 범위 안의 숫자만 받는다.
 - EXE, Windows ZIP, DMG 두 개, 안내 문서 세 개, `SHA256SUMS.txt`를 배포한다.
 - 플랫폼 하나라도 실패하거나 파일이 누락·변조되면 공개하지 않는다.

@@ -5,4 +5,8 @@ artifacts/
 .superpowers/
 TestResults/
 dist/macos/
+# Installers are generated locally or published by the Release workflow.
+*.exe
+*.dmg
+dist/portable-win-x64/*.zip
 __pycache__/

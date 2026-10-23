@@ -3,4 +3,3 @@
 *.xaml text eol=lf
 *.md text eol=lf
 *.sh text eol=lf
-dist/portable-win-x64/SnapBerry.exe filter=lfs diff=lfs merge=lfs -text

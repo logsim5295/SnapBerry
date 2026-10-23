@@ -2,6 +2,13 @@
 
 이 문서의 `simlog1234/SnapBerry/actions/runs/...` 링크는 저장소 이전 전에 실행한 검증의 원래 주소다. 새 저장소를 별도로 생성했으므로 과거 실행 ID를 새 저장소 주소로 바꿔도 해당 기록으로 연결되지 않는다. 현재 검증은 [logsim5295/SnapBerry Actions](https://github.com/logsim5295/SnapBerry/actions/workflows/macos.yml)에서 확인하고, 다운로드에는 [macOS 안내](macos.md)를 따른다.
 
+## GitHub Releases 전용 배포로 전환 (2026-10-23)
+
+- 현재 브랜치에서 `dist/portable-win-x64/SnapBerry.exe`의 Git 추적과 `.gitattributes`의 LFS 규칙을 제거했다. EXE·DMG와 Windows 설치 ZIP을 Git 제외 목록에 추가하고 `AGENTS.md`·README·macOS 안내·자동 릴리스 계획을 새 정책에 맞췄다. 실제 로컬 EXE·DMG는 유지한다.
+- 사용자는 GitHub Releases에서 설치 파일을 받고, 개발자는 소스에서 로컬 빌드한다. 태그 Release 워크플로는 세 플랫폼의 설치 파일을 빌드해 공개 릴리스에 첨부한다. 체크아웃의 불필요한 LFS 옵션도 제거했으며 앱 소스·게시 프로필은 변경하지 않았다.
+- 과거 커밋·태그와 기존 공개 릴리스는 유지한다. 아래의 과거 LFS 검증 기록은 당시 정책에 대한 설명이며 현재 배포 규칙은 `AGENTS.md`를 따른다. 새 정책은 이번 커밋부터 적용한다.
+- Git 인덱스에 EXE·DMG가 없고 Windows EXE의 LFS 속성이 해제되었음을 확인했다. 기존 로컬 EXE와 두 DMG의 SHA-256은 변경 전과 같다. actionlint와 Python 배포 도구 테스트 36개가 통과했으며 Unix 전용 검사 1개는 건너뛰었다. 앱 코드 변경이 없어 앱 재게시와 대화형 테스트는 실행하지 않았다.
+
 ## 버전 태그 자동 릴리스와 수동 CI 검증 (2026-10-23)
 
 - 설정 커밋 `5769420`을 main에 반영하고 [Release 수동 실행 39903336346](https://github.com/logsim5295/SnapBerry/actions/runs/39903336346)에 `v1.2.3`을 입력해 전체 성공을 확인했다. `validate`, Windows, macOS arm64·x64, `assemble` 작업이 모두 통과했다.
