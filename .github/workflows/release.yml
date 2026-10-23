@@ -1,0 +1,232 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '검증할 버전 태그 (수동 실행은 릴리스를 공개하지 않음)'
+        required: true
+        default: 'v1.1.0'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: false
+          persist-credentials: false
+      - name: Validate the release tag
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.version }}
+        run: python3 build/release.py version "$RELEASE_TAG"
+      - name: Test release and package preparation without starting the app
+        run: python3 -m unittest discover -s build/tests -v
+
+  windows:
+    needs: validate
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Set the version in this runner's working copy
+        run: python build/release.py prepare "v$env:VERSION"
+      - name: Build the normal Release solution
+        run: dotnet build SnapBerry.sln -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false
+      - name: Test shared logic and the headless desktop
+        run: |
+          dotnet test tests/SnapBerry.Core.Tests -c Release --no-build --logger "trx;LogFileName=core.trx" --results-directory artifacts/release-tests/windows
+          if ($LASTEXITCODE -ne 0) { throw 'Core tests failed' }
+          dotnet test tests/SnapBerry.Desktop.Tests -c Release --no-build --logger "trx;LogFileName=desktop.trx" --results-directory artifacts/release-tests/windows
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop tests failed' }
+      - name: Publish the obfuscated self-contained single EXE
+        run: dotnet publish src/SnapBerry.App/SnapBerry.App.csproj -c Release -p:PublishProfile=Portable
+      - name: Verify the EXE without launching it
+        run: |
+          dotnet run --project tools/PortableVerification -- .
+          if ($LASTEXITCODE -ne 0) { throw 'Portable verification failed' }
+          $productVersion = (Get-Item -LiteralPath dist/portable-win-x64/SnapBerry.exe).VersionInfo.ProductVersion
+          if (($productVersion -split '\+')[0] -ne $env:VERSION) { throw "Incorrect executable version: $productVersion" }
+      - name: Package only the EXE and legal documents
+        run: python build/release.py windows --version "$env:VERSION" --source dist/portable-win-x64 --output artifacts/release/windows
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-package-windows
+          path: artifacts/release/windows/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Keep headless test results even on failure
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-test-results-windows
+          path: artifacts/release-tests/windows/
+          if-no-files-found: warn
+          retention-days: 14
+
+  macos:
+    needs: validate
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            rid: osx-arm64
+          - runner: macos-15-intel
+            arch: x64
+            rid: osx-x64
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Set the version in this runner's working copy
+        run: python3 build/release.py prepare "v$VERSION"
+      - name: Build and test without OS windows or capture
+        run: |
+          dotnet build src/SnapBerry.Desktop -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false
+          dotnet test tests/SnapBerry.Core.Tests -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false --logger "trx;LogFileName=core.trx" --results-directory "artifacts/release-tests/${{ matrix.rid }}"
+          dotnet test tests/SnapBerry.Desktop.Tests -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false --logger "trx;LogFileName=desktop.trx" --results-directory "artifacts/release-tests/${{ matrix.rid }}"
+      - name: Publish the native architecture
+        shell: pwsh
+        run: ./build/Publish-MacOS.ps1 -RuntimeIdentifier '${{ matrix.rid }}'
+      - name: Verify the package and load native libraries without starting the app
+        run: python3 build/verify_macos.py "dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip" --arch '${{ matrix.arch }}' --native
+      - name: Create and inspect the trial DMG without opening Finder or SnapBerry
+        run: python3 build/package_macos_dmg.py "dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip" --arch '${{ matrix.arch }}' --output "dist/macos/SnapBerry-macos-${{ matrix.arch }}.dmg"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-package-macos-${{ matrix.arch }}
+          path: dist/macos/SnapBerry-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - name: Keep headless test results even on failure
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-test-results-${{ matrix.rid }}
+          path: artifacts/release-tests/${{ matrix.rid }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+  assemble:
+    needs: [validate, windows, macos]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-package-*
+          merge-multiple: true
+          path: artifacts/release/files
+      - name: Require both CPUs and verify Windows ZIP contents before checksumming
+        run: python3 build/release.py manifest --version "$VERSION" --directory artifacts/release/files
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: release-files
+          path: artifacts/release/files/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    if: github.event_name == 'push'
+    needs: [validate, assemble]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.validate.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-files
+          path: artifacts/release/files
+      - name: Upload a complete draft, verify server digests, then publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          python3 build/release.py manifest --version "$VERSION" --directory artifacts/release/files
+          existing=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[] | select(.tag_name == env.TAG) | .draft')
+          if [[ "$existing" == false ]]; then
+            echo '::notice::This release is already public; its files will be preserved.'
+            exit 0
+          fi
+          cat > release-notes.md <<'NOTES'
+          Windows x64: ZIP을 풀고 SnapBerry.exe를 실행하세요. EXE 단독 다운로드도 제공합니다.
+          macOS 14 이상: Apple Silicon은 arm64 DMG, Intel은 x64 DMG를 사용하세요. DMG를 열어 응용 프로그램 폴더로 SnapBerry를 옮기면 됩니다.
+          별도 .NET 설치와 GitHub 로그인은 필요하지 않습니다. 파일 무결성은 SHA256SUMS.txt로 확인하세요.
+          macOS는 Developer ID 서명·Apple 공증 전 시험 버전입니다. 첫 실행 시 보안 승인과 화면 기록 권한 허용이 필요할 수 있습니다.
+          NOTES
+          printf '\n소스 커밋: %s\n' "$GITHUB_SHA" >> release-notes.md
+          if [[ -z "$existing" ]]; then
+            gh release create "$TAG" --verify-tag --draft --title "SnapBerry $TAG" --notes-file release-notes.md
+          fi
+          gh release upload "$TAG" artifacts/release/files/* --clobber
+          gh api "repos/$GH_REPO/releases/tags/$TAG" > release-metadata.json
+          python3 build/release.py verify-upload --version "$VERSION" --directory artifacts/release/files --metadata release-metadata.json
+          gh release edit "$TAG" --draft=false --latest
