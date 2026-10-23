@@ -72,7 +72,7 @@ dotnet test tests/SnapBerry.Desktop.Tests -c Release
 
 ### 실제 UI 화면 확인
 
-Actions → `macOS verification` → Run workflow에서 검증할 브랜치를 고르고 `ui_only`를 켜면 Apple Silicon·Intel의 실제 macOS 창을 검증한다. 이 모드는 화면 기록 권한 설정을 바꾸거나 설치 파일을 배포하지 않는다. 빌드 서버에 이미 있는 접근성·화면 기록 권한이 없으면 실패한다.
+Actions → `macOS verification` → Run workflow에서 검증할 브랜치를 고르고 `ui_only`를 켜면 Apple Silicon·Intel의 실제 macOS 창을 검증한다. UI 검증 브랜치 `codex/macos-ui-refresh`의 push에서도 이 모드를 자동 실행한다. 이 모드는 화면 기록 권한 설정을 바꾸거나 설치 파일을 배포하지 않는다. 빌드 서버에 이미 있는 접근성·화면 기록 권한이 없으면 실패한다.
 
 각 CPU에서 라이트·다크 테마의 메인·정보·단축키·설정·이미지를 붙여넣은 편집 화면·작은 창을 확인한다. 실제 Launch Services로 앱을 열고 WindowServer의 해당 앱 창 ID를 지정해 PNG를 저장한다. 접근성 트리로 주요 버튼·입력란·창 내부 배치를 검사하고, 테마별 캔버스 밝기와 PNG의 크기·색상 다양성을 확인한다. 앱은 정상 종료까지 검사하며, 테스트가 만든 설정과 앱 번들만 정리한다.
 
