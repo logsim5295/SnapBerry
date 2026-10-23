@@ -29,13 +29,17 @@ for (var i = 0; i < count; i++)
     reader.ReadByte();
     var name = reader.ReadString();
     bundleFiles.Add(name);
-    if (name is not ("SnapBerry.dll" or "SnapBerry.Core.dll")) continue;
+    if (name is not ("SnapBerry.dll" or "SnapBerry.Core.dll" or "SnapBerry.Imaging.dll")) continue;
     Require(compressed == 0, "압축된 번들은 별도 검증이 필요합니다.");
     assemblies.Add(name, exe.AsSpan(checked((int)offset), checked((int)size)).ToArray());
 }
 foreach (var name in new[] { "SkiaSharp.dll", "libSkiaSharp.dll" })
     Require(bundleFiles.Contains(name), $"WebP 저장에 필요한 {name}이 단일 EXE에 없습니다.");
 Console.WriteLine("WebP 관리·네이티브 라이브러리의 단일 EXE 포함 확인");
+Require(bundleFiles.Contains("SnapBerry.Imaging.dll"),"마술봉 처리 라이브러리가 단일 EXE에 없습니다.");
+Require(!bundleFiles.Any(name=>name.Contains("onnx",StringComparison.OrdinalIgnoreCase)),"마술봉에 불필요한 AI 실행 엔진이 포함되었습니다.");
+Require(!Inspect(assemblies["SnapBerry.Imaging.dll"]).Resources.Keys.Any(name=>name.EndsWith(".onnx")),"불필요한 AI 모델이 포함되었습니다.");
+Console.WriteLine("마술봉 공통 처리 라이브러리 포함 및 AI 모델·엔진 제거 확인");
 foreach (var name in new[] { "SnapBerry.dll", "SnapBerry.Core.dll" })
 {
     Require(assemblies.ContainsKey(name), $"번들에 {name}이 없습니다.");

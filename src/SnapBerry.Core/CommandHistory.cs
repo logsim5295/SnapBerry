@@ -2,7 +2,7 @@ namespace SnapBerry.Core;
 // 주석·번호 순서·자르기 영역을 한 상태로 묶어 실행 취소와 다시 실행을 지원한다.
 public sealed class CommandHistory(AnnotationDocument document)
 {
-    private sealed record Snapshot(Annotation[] Items,StepSequenceState Sequence,PixelRect CropBounds,PixelSize? ResizeSize,Guid Token);
+    private sealed record Snapshot(Annotation[] Items,StepSequenceState Sequence,PixelRect CropBounds,PixelSize? ResizeSize,string? BackgroundAssetHash,Guid Token);
     private readonly Stack<Snapshot> undo=[];
     private readonly Stack<Snapshot> redo=[];
     private Snapshot? group;
@@ -12,8 +12,8 @@ public sealed class CommandHistory(AnnotationDocument document)
     public Guid CurrentStateToken {get;private set;}=Guid.NewGuid();
     public bool IsDirty=>exported!=CurrentStateToken;public bool IsPersistenceDirty=>persisted!=CurrentStateToken;
     public bool CanRedo=>redo.Count>0;public bool CanUndo=>undo.Count>0;
-    private Snapshot Capture()=>new(document.Annotations.ToArray(),document.Sequence,document.CropBounds,document.ResizeSize,CurrentStateToken);
-    private void Restore(Snapshot s){document.Annotations.Clear();document.Annotations.AddRange(s.Items);document.Sequence=s.Sequence;document.CropBounds=s.CropBounds;document.ResizeSize=s.ResizeSize;CurrentStateToken=s.Token;Changed?.Invoke(this,EventArgs.Empty);}
+    private Snapshot Capture()=>new(document.Annotations.ToArray(),document.Sequence,document.CropBounds,document.ResizeSize,document.BackgroundAssetHash,CurrentStateToken);
+    private void Restore(Snapshot s){document.Annotations.Clear();document.Annotations.AddRange(s.Items);document.Sequence=s.Sequence;document.CropBounds=s.CropBounds;document.ResizeSize=s.ResizeSize;document.BackgroundAssetHash=s.BackgroundAssetHash;CurrentStateToken=s.Token;Changed?.Invoke(this,EventArgs.Empty);}
     // 작업이 성공한 뒤 이전 상태를 쌓는다. 새 편집은 기존 다시 실행 경로를 무효화한다.
     public void Execute(Action action){var state=Capture();action();if(group is null){undo.Push(state);redo.Clear();}CurrentStateToken=Guid.NewGuid();Changed?.Invoke(this,EventArgs.Empty);}
     // 슬라이더의 연속 변경은 화면에 즉시 반영하되 실행 취소에는 처음과 끝만 남긴다.
@@ -21,9 +21,15 @@ public sealed class CommandHistory(AnnotationDocument document)
     public void EndGroup()
     {
         if(group is not Snapshot state)return;group=null;
-        if(state.Items.SequenceEqual(document.Annotations)&&state.Sequence==document.Sequence&&state.CropBounds==document.CropBounds&&state.ResizeSize==document.ResizeSize)
+        if(state.Items.SequenceEqual(document.Annotations)&&state.Sequence==document.Sequence&&state.CropBounds==document.CropBounds&&state.ResizeSize==document.ResizeSize&&state.BackgroundAssetHash==document.BackgroundAssetHash)
         {if(CurrentStateToken!=state.Token){CurrentStateToken=state.Token;Changed?.Invoke(this,EventArgs.Empty);}return;}
         undo.Push(state);redo.Clear();Changed?.Invoke(this,EventArgs.Empty);
+    }
+    public void SetBackground(string hash)
+    {
+        if(!AnnotationDocument.IsAssetHash(hash))throw new ArgumentException("Invalid background image reference.",nameof(hash));
+        if(document.BackgroundAssetHash==hash)return;
+        EndGroup();Execute(()=>document.BackgroundAssetHash=hash);
     }
     public void Add(Annotation a)=>Execute(()=>document.Annotations.Add(a));
     public void Remove(Guid id)=>Execute(()=>document.Annotations.RemoveAll(a=>a.Id==id));

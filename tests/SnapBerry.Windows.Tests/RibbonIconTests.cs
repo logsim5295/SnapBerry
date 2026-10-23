@@ -9,7 +9,7 @@ public class RibbonIconTests
 {
     [Fact] public void EveryRibbonIconRendersBrandColorsAtLargeAndSmallSizes()=>Sta.Run(()=>
     {
-        string[] names=["ImageFile","Paste","Region","Window","Desktop","Select","Arrow","Text","Rectangle","Mosaic","Number","Sticker","Crop","Undo","Redo","Delete","Edit","Copy","Save","ZoomOut","ZoomIn","Fit","History","Properties","Settings","About"];
+        string[] names=["ImageFile","Paste","Region","Window","Desktop","Select","Arrow","Text","Rectangle","Mosaic","Number","Sticker","Crop","MagicWand","Undo","Redo","Delete","Edit","Copy","Save","ZoomOut","ZoomIn","Fit","History","Properties","Settings","About"];
         foreach(var name in names)foreach(var size in new[]{16,32})
         {
             var icon=RibbonIcons.Create(name);Assert.True(icon.IsFrozen);var visual=new DrawingVisual();using(var dc=visual.RenderOpen())dc.DrawImage(icon,new Rect(0,0,size,size));

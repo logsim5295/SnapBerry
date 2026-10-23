@@ -45,12 +45,12 @@ public sealed partial class MainWindow : Window,IDisposable
         Wire("CopyButton",()=>CopyImageAsync());Wire("PasteButton",PasteImageAsync);Wire("StickerButton",ShowStickersAsync);Wire("ApplyKeycapButton",UpdateKeycapAsync);Wire("HotkeyButton",ShowHotkeysAsync);
         Wire("RegionButton",()=>CaptureAsync(DesktopCaptureMode.Region));Wire("WindowButton",()=>CaptureAsync(DesktopCaptureMode.Window));Wire("DisplayButton",()=>CaptureAsync(DesktopCaptureMode.Display));
         Wire("SaveButton",ExportAsync);Wire("UndoButton",()=>{surface.CancelGesture();editor.History?.Undo();return Task.CompletedTask;});Wire("RedoButton",()=>{surface.CancelGesture();editor.History?.Redo();return Task.CompletedTask;});
-        Wire("DeleteButton",()=>{surface.CancelGesture();editor.DeleteSelected();return Task.CompletedTask;});Wire("DuplicateButton",()=>{surface.CancelGesture();editor.DuplicateSelected();return Task.CompletedTask;});
+        Wire("DeleteButton",()=>{surface.CancelGesture();DeleteSelectionSafely();return Task.CompletedTask;});Wire("DuplicateButton",()=>{surface.CancelGesture();editor.DuplicateSelected();return Task.CompletedTask;});
         Wire("ApplyTextButton",()=>{editor.EditSelectedText(Control<TextBox>("TextEntry").Text??"");return Task.CompletedTask;});
         Wire("ZoomInButton",()=>{surface.Zoom*=1.25;UpdateCommands();return Task.CompletedTask;});Wire("ZoomOutButton",()=>{surface.Zoom/=1.25;UpdateCommands();return Task.CompletedTask;});Wire("FitButton",()=>{Fit();return Task.CompletedTask;});
         var theme=Control<ComboBox>("ThemeBox");theme.SelectedIndex=preferences.Dark?1:0;ApplyTheme(theme.SelectedIndex==1);
         theme.SelectionChanged+=(_,_)=>{ApplyTheme(theme.SelectedIndex==1);try{var next=preferences with{Dark=theme.SelectedIndex==1};next.Save(dataDirectory);preferences=next;}catch(Exception error){Status("테마 저장 실패: "+error.Message);}};
-        InitializeHistoryFeatures();InitializeParityFeatures();
+        InitializeMagicWand();InitializeHistoryFeatures();InitializeParityFeatures();
         AddHandler(KeyDownEvent,HandleKey,RoutingStrategies.Bubble);Closing+=WindowClosing;Deactivated+=(_,_)=>surface.CancelGesture();
         Closed+=(_,_)=>Dispose();
         Opened+=async (_,_)=>{InitializeHotkeys();await RefreshHistoryAsync();if(editor.Document is not null)Fit();};UpdateCommands();
@@ -74,9 +74,10 @@ public sealed partial class MainWindow : Window,IDisposable
     private void UpdateCommands()
     {
         var has=editor.Document is not null;
+        Control<Button>("MagicWandButton").IsEnabled=!busy&&has;Control<Button>("DeleteMagicWandButton").IsEnabled=!busy&&editor.HasPixelSelection;
         foreach(var name in new[]{"SaveButton","AddImageButton","RenameButton","ApplyTextButton","FitButton","ZoomInButton","ZoomOutButton"})Control<Button>(name).IsEnabled=!busy&&has;
         Control<Button>("UndoButton").IsEnabled=!busy&&editor.History?.CanUndo==true;Control<Button>("RedoButton").IsEnabled=!busy&&editor.History?.CanRedo==true;
-        Control<Button>("DuplicateButton").IsEnabled=Control<Button>("DeleteButton").IsEnabled=!busy&&editor.Selected is not null;
+        Control<Button>("DuplicateButton").IsEnabled=!busy&&editor.Selected is not null;Control<Button>("DeleteButton").IsEnabled=!busy&&(editor.Selected is not null||editor.HasPixelSelection);
         Control<WrapPanel>("PropertiesPanel").IsEnabled=!busy&&has;Control<StackPanel>("EmptyPanel").IsVisible=!has;
         Control<Button>("CopyButton").IsEnabled=!busy&&has;Control<Button>("PasteButton").IsEnabled=!busy;UpdateStickerCommands();
         Control<TextBlock>("ZoomText").Text=$"{surface.Zoom:P0}";
@@ -111,7 +112,7 @@ public sealed partial class MainWindow : Window,IDisposable
     {if(editor.Document is not AnnotationDocument doc)return;surface.Zoom=Math.Min(1,Math.Min(Math.Max(100,Control<ScrollViewer>("ImageScroll").Bounds.Width-60)/doc.OutputSize.Width,Math.Max(100,Control<ScrollViewer>("ImageScroll").Bounds.Height-60)/doc.OutputSize.Height));UpdateCommands();}
     private void HandleKey(object? sender,KeyEventArgs e)
     {
-        if(e.Key==Key.Escape){surface.CancelGesture();return;}if(busy)return;
+        if(e.Key==Key.Escape){editor.ClearMagicWand();surface.CancelGesture();return;}if(busy)return;
         var textInput=e.Source is TextBox||e.Source is Control c&&c.GetVisualAncestors().OfType<TextBox>().Any();
         var command=(e.KeyModifiers&(KeyModifiers.Meta|KeyModifiers.Control))!=0;
         if(command&&e.Key==Key.O){e.Handled=true;_=RunAsync(()=>OpenImageAsync(false));}
@@ -120,12 +121,12 @@ public sealed partial class MainWindow : Window,IDisposable
         else if(!textInput&&command&&e.Key==Key.V){e.Handled=true;_=RunAsync(PasteImageAsync);}
         else if(!textInput&&command&&e.Key==Key.Z){e.Handled=true;surface.CancelGesture();if(e.KeyModifiers.HasFlag(KeyModifiers.Shift))editor.History?.Redo();else editor.History?.Undo();}
         else if(!textInput&&command&&e.Key==Key.D){e.Handled=true;surface.CancelGesture();editor.DuplicateSelected();}
-        else if(!textInput&&e.Key is Key.Delete or Key.Back){e.Handled=true;surface.CancelGesture();editor.DeleteSelected();}
+        else if(!textInput&&e.Key is Key.Delete or Key.Back){e.Handled=true;surface.CancelGesture();DeleteSelectionSafely();}
     }
     private async void WindowClosing(object? sender,WindowClosingEventArgs e)
     {
         if(allowClose)return;e.Cancel=true;if(busy){Status("작업이 끝난 뒤 다시 종료해 주세요.");return;}
         await RunAsync(async ()=>{await FlushAsync();stickerPicker?.Hide();Hide();});
     }
-    public void Dispose(){if(closed)return;allowClose=true;closed=true;if(hotkeys is not null){hotkeys.Pressed-=OnGlobalCapture;hotkeys.Dispose();}DisposeHistoryFeatures();stickerPicker?.Close();editor.Changed-=EditorChanged;autosave.Dispose();surface.Dispose();editor.Dispose();}
+    public void Dispose(){if(closed)return;editor.ClearMagicWand();editor.MagicWandChanged-=MagicWandChanged;allowClose=true;closed=true;if(hotkeys is not null){hotkeys.Pressed-=OnGlobalCapture;hotkeys.Dispose();}DisposeHistoryFeatures();stickerPicker?.Close();editor.Changed-=EditorChanged;autosave.Dispose();surface.Dispose();editor.Dispose();}
 }

@@ -35,11 +35,11 @@ public sealed class CaptureLibraryStore(string directory)
         lock(gate)
         {
             Validate(record);
-            var hashes=record.Annotations.Where(x=>x.Kind==AnnotationKind.Sticker).Select(x=>x.AssetHash).Distinct().ToArray();
+            var hashes=record.ReferencedAssetHashes.ToArray();
             ValidateImageAssetSizes(record.OriginalPng.LongLength,hashes.Select(hash=>record.StickerAssets.TryGetValue(hash,out var data)?data.LongLength:throw new InvalidDataException("Sticker image is missing or damaged.")));
             ValidatePng(record.OriginalPng,record.Width,record.Height);
             foreach(var hash in hashes)
-            {if(!record.StickerAssets.TryGetValue(hash,out var bytes)||Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()!=hash)throw new InvalidDataException("Sticker image is missing or damaged.");ValidatePng(bytes);}
+            {if(!record.StickerAssets.TryGetValue(hash,out var bytes)||Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()!=hash)throw new InvalidDataException("Sticker image is missing or damaged.");ValidatePng(bytes,hash==record.BackgroundAssetHash?record.Width:null,hash==record.BackgroundAssetHash?record.Height:null);}
             Directory.CreateDirectory(directory);var target=PathFor(record.Id);
             if(File.Exists(target)){using var existing=ZipFile.OpenRead(target);ReadManifest(existing,record.Id);}
             var temp=Path.Combine(directory,record.Id.ToString("N")+"."+Guid.NewGuid().ToString("N")+".tmp");
@@ -64,8 +64,8 @@ public sealed class CaptureLibraryStore(string directory)
             using var zip=ZipFile.OpenRead(PathFor(id));var record=ReadManifest(zip,id);
             var png=Read(zip,"original.png",MaxOriginalImageBytes);ValidatePng(png,record.Width,record.Height);
             var assets=new Dictionary<string,byte[]>();long total=png.Length;
-            foreach(var hash in record.Annotations.Where(x=>x.Kind==AnnotationKind.Sticker).Select(x=>x.AssetHash).Distinct())
-            {var data=Read(zip,$"assets/{hash}.png",MaxImageAssetBytes);total+=data.Length;if(total>MaxTotalImageBytes)throw new InvalidDataException("Capture assets are too large.");if(Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant()!=hash)throw new InvalidDataException("Sticker image is damaged.");ValidatePng(data);assets[hash]=data;}
+            foreach(var hash in record.ReferencedAssetHashes)
+            {var data=Read(zip,$"assets/{hash}.png",MaxImageAssetBytes);total+=data.Length;if(total>MaxTotalImageBytes)throw new InvalidDataException("Capture assets are too large.");if(Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant()!=hash)throw new InvalidDataException("Sticker image is damaged.");ValidatePng(data,hash==record.BackgroundAssetHash?record.Width:null,hash==record.BackgroundAssetHash?record.Height:null);assets[hash]=data;}
             return record with {OriginalPng=png,StickerAssets=assets};
         }
     });
@@ -106,7 +106,7 @@ public sealed class CaptureLibraryStore(string directory)
     internal static void Validate(CaptureRecord r)
     {
         // 디스크에서 읽은 데이터도 신뢰하지 않는다. 좌표·크기·열거형과 자원 참조를 렌더링 전에 검사한다.
-        if(r.SchemaVersion!=1)throw new InvalidDataException("Unsupported capture format.");ImageDimensions.GuardSize(r.Width,r.Height);
+        if(r.SchemaVersion is not (1 or 2)||r.BackgroundAssetHash is not null&&(r.SchemaVersion!=2||!AnnotationDocument.IsAssetHash(r.BackgroundAssetHash)))throw new InvalidDataException("Unsupported capture format.");ImageDimensions.GuardSize(r.Width,r.Height);
         if(!CaptureName.IsValid(r.Name))throw new InvalidDataException("Invalid capture name.");
         if(r.CropBounds is PixelRect crop&&!CropPlacement.IsWithin(crop,r.Width,r.Height))throw new InvalidDataException("Invalid crop bounds.");
         if(r.ResizeSize is PixelSize size)ImageResize.Validate(size);

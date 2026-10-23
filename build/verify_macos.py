@@ -50,6 +50,7 @@ def verify_package(path, arch, native=False):
         required = [
             MACOS + name for name in (
                 "SnapBerry.Desktop", "SnapBerry.Desktop.dll", "SnapBerry.Core.dll",
+                "SnapBerry.Imaging.dll",
                 "SnapBerry.Desktop.runtimeconfig.json", "System.Private.CoreLib.dll",
                 "libcoreclr.dylib", "libhostpolicy.dylib", *LIBRARIES,
             )

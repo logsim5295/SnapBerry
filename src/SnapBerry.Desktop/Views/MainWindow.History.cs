@@ -89,7 +89,7 @@ public sealed partial class MainWindow
         var ratio=Math.Min(1,Math.Min(132d/output.Width,104d/output.Height));
         var document=new AnnotationDocument(record.Width,record.Height)
         {
-            CropBounds=record.CropBounds??new(0,0,record.Width,record.Height),Sequence=record.Sequence,
+            CropBounds=record.CropBounds??new(0,0,record.Width,record.Height),Sequence=record.Sequence,BackgroundAssetHash=record.BackgroundAssetHash,
             ResizeSize=new(Math.Max(1,(int)(output.Width*ratio)),Math.Max(1,(int)(output.Height*ratio)))
         };
         document.Annotations.AddRange(record.Annotations);

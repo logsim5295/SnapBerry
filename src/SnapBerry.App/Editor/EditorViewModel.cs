@@ -7,9 +7,9 @@ using SnapBerry.App.Stickers;
 using SnapBerry.App.Export;
 using SnapBerry.App.Import;
 namespace SnapBerry.App.Editor;
-public enum EditorTool { Select,Arrow,Text,Rectangle,Mosaic,Number,Sticker,Crop }
+public enum EditorTool { Select,Arrow,Text,Rectangle,Mosaic,Number,Sticker,Crop,MagicWand }
 // 편집 문서·선택·도구 기본값·자원과 합성 캐시를 관리하며 UI와 파일 저장 모델을 연결한다.
-public sealed class EditorViewModel
+public sealed partial class EditorViewModel
 {
     public AnnotationDocument? Document {get;private set;}public CommandHistory? History {get;private set;}
     public StickerAssetStore Assets {get;private set;}=new();public BitmapSource? Original {get;private set;}
@@ -42,25 +42,41 @@ public sealed class EditorViewModel
     public void Open(CaptureRecord value)
     {
         // 검증과 새 문서 구성을 끝낸 뒤 상태를 교체한다. 열기에 실패하면 기존 편집 상태를 유지한다.
+        CaptureLibraryStore.Validate(value);CaptureLibraryStore.ValidateImageAssetSizes(value.OriginalPng.LongLength,value.StickerAssets.Values.Select(a=>a.LongLength));
         CompositeRenderer.GuardSize(value.Width,value.Height);var original=PngFileWriter.Decode(value.OriginalPng);
         if(original.PixelWidth!=value.Width||original.PixelHeight!=value.Height)throw new InvalidDataException("Image size does not match.");
-        var document=new AnnotationDocument(value.Width,value.Height){Sequence=value.Sequence,CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),ResizeSize=value.ResizeSize};document.Annotations.AddRange(value.Annotations);
+        var document=new AnnotationDocument(value.Width,value.Height){Sequence=value.Sequence,CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),ResizeSize=value.ResizeSize,BackgroundAssetHash=value.BackgroundAssetHash};document.Annotations.AddRange(value.Annotations);
         var assets=new StickerAssetStore();assets.Import(value.StickerAssets);foreach(var a in value.Annotations.Where(x=>x.Kind==AnnotationKind.Sticker))assets.GetBitmap(a.AssetHash);
-        var history=new CommandHistory(document);history.MarkPersisted(history.CurrentStateToken);history.Changed+=(_,_)=>{composite=null;Changed?.Invoke(this,EventArgs.Empty);};
-        record=value;Original=original;Document=document;Assets=assets;History=history;SelectedId=null;composite=null;Changed?.Invoke(this,EventArgs.Empty);
+        if(value.BackgroundAssetHash is {} background)
+        {
+            var image=assets.GetBitmap(background);
+            if(image.PixelWidth!=value.Width||image.PixelHeight!=value.Height)throw new InvalidDataException("누끼 이미지의 크기가 원본과 다릅니다.");
+        }
+        var history=new CommandHistory(document);history.MarkPersisted(history.CurrentStateToken);history.Changed+=(_,_)=>{composite=null;ClearMagicWand();Changed?.Invoke(this,EventArgs.Empty);};
+        record=value;Original=original;Document=document;Assets=assets;History=history;SelectedId=null;composite=null;ClearMagicWand();Changed?.Invoke(this,EventArgs.Empty);
     }
     public CaptureRecord Snapshot()
     {
         // 참조 중인 스티커만 포함한다. 원본 PNG는 유지하고 편집 메타데이터를 덧붙인다.
         if(record is null||Document is null)throw new InvalidOperationException("No capture is open.");
-        var hashes=Document.Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Distinct();
-        return record with {UpdatedAtUtc=DateTimeOffset.UtcNow,CropBounds=Document.CropBounds==new PixelRect(0,0,Document.SourceWidth,Document.SourceHeight)?null:Document.CropBounds,ResizeSize=Document.ResizeSize,Annotations=Document.Annotations.ToArray(),Sequence=Document.Sequence,StickerAssets=hashes.ToDictionary(h=>h,h=>Assets.Data[h])};
+        var hashes=Document.ReferencedAssetHashes;
+        return record with {SchemaVersion=Document.BackgroundAssetHash is null?1:2,BackgroundAssetHash=Document.BackgroundAssetHash,UpdatedAtUtc=DateTimeOffset.UtcNow,CropBounds=Document.CropBounds==new PixelRect(0,0,Document.SourceWidth,Document.SourceHeight)?null:Document.CropBounds,ResizeSize=Document.ResizeSize,Annotations=Document.Annotations.ToArray(),Sequence=Document.Sequence,StickerAssets=hashes.ToDictionary(h=>h,h=>Assets.Data[h])};
     }
     // 저장이 완료된 이름만 반영한다. 편집 문서와 실행 취소 스택은 교체하지 않는다.
     public void SetCaptureName(string name)
     {if(record is null)throw new InvalidOperationException("No capture is open.");record=record with{Name=CaptureName.Normalize(name)};}
     // 문서 변경 시 캐시를 무효화한다. 선택 변경이나 확대만으로 전체 이미지를 다시 합성하지 않는다.
-    public BitmapSource? Composite()=>Document is null||Original is null?null:composite??=new CompositeRenderer().Render(Original,Document.Annotations,Assets,Document.CropBounds,Document.ResizeSize);
+    public BitmapSource? Background=>Document?.BackgroundAssetHash is {} hash?Assets.GetBitmap(hash):Original;
+    public void ApplyBackgroundRemoval(byte[] png)
+    {
+        if(Document is null||History is null)throw new InvalidOperationException("이미지를 먼저 열어 주세요.");
+        var replacement=Convert.ToHexString(SHA256.HashData(png)).ToLowerInvariant();
+        CaptureLibraryStore.ValidateImageAssetSizes(record!.OriginalPng.LongLength,Document.AssetHashesWithBackground(replacement).Select(h=>h==replacement?png.LongLength:Assets.Data[h].LongLength));
+        var image=PngFileWriter.Decode(png);
+        if(image.PixelWidth!=Document.SourceWidth||image.PixelHeight!=Document.SourceHeight)throw new InvalidDataException("누끼 이미지의 크기가 원본과 다릅니다.");
+        var hash=Assets.AddPng(png);SelectedId=null;History.SetBackground(hash);
+    }
+    public BitmapSource? Composite()=>Document is null||Background is null?null:composite??=new CompositeRenderer().Render(Background,Document.Annotations,Assets,Document.CropBounds,Document.ResizeSize);
     public void CropTo(PixelRect relativeBounds)
     {if(History is null)return;SelectedId=null;History.Crop(relativeBounds);}
     public void InsertSticker(StickerDefinition definition,PixelPoint point)
@@ -73,7 +89,7 @@ public sealed class EditorViewModel
         if(Document is null||History is null)throw new InvalidOperationException("No capture is open.");
         CaptureLibraryStore.ValidateImageAssetSizes(record!.OriginalPng.LongLength,[png.LongLength]);
         var hash=Convert.ToHexString(SHA256.HashData(png)).ToLowerInvariant();
-        var sizes=Document.Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Distinct().ToDictionary(key=>key,key=>Assets.Data[key].LongLength);
+        var sizes=Document.ReferencedAssetHashes.ToDictionary(key=>key,key=>Assets.Data[key].LongLength);
         sizes[hash]=png.LongLength;CaptureLibraryStore.ValidateImageAssetSizes(record.OriginalPng.LongLength,sizes.Values);
         var image=PngFileWriter.Decode(png);CompositeRenderer.GuardSize(image.PixelWidth,image.PixelHeight);
         var output=Document.OutputSize;
@@ -98,7 +114,7 @@ public sealed class EditorViewModel
         {
             var png=PngFileWriter.Encode(content.Image);CaptureLibraryStore.ValidateImageAssetSizes(record!.OriginalPng.LongLength,[png.LongLength]);
             var hash=Convert.ToHexString(SHA256.HashData(png)).ToLowerInvariant();
-            var sizes=Document.Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Distinct().ToDictionary(key=>key,key=>Assets.Data[key].LongLength);
+            var sizes=Document.ReferencedAssetHashes.ToDictionary(key=>key,key=>Assets.Data[key].LongLength);
             sizes[hash]=png.LongLength;CaptureLibraryStore.ValidateImageAssetSizes(record.OriginalPng.LongLength,sizes.Values);
             annotation=annotation with{AssetHash=Assets.AddPng(png)};
         }
@@ -113,5 +129,5 @@ public sealed class EditorViewModel
         var hash=Assets.AddPng(StickerCatalog.CreatePng(definition,label));var bitmap=Assets.GetBitmap(hash);
         History!.Replace(a with {Text=label,AssetHash=hash,Width=a.Height*bitmap.PixelWidth/bitmap.PixelHeight});
     }
-    public void Clear(){record=null;Document=null;History=null;Original=null;composite=null;Assets=new();SelectedId=null;Changed?.Invoke(this,EventArgs.Empty);}
+    public void Clear(){ClearMagicWand();record=null;Document=null;History=null;Original=null;composite=null;Assets=new();SelectedId=null;Changed?.Invoke(this,EventArgs.Empty);}
 }

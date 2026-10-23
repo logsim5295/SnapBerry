@@ -384,6 +384,14 @@
           "Avalonia.Desktop": "[12.1.4, )",
           "Avalonia.Themes.Fluent": "[12.1.4, )",
           "SkiaSharp": "[3.119.4, )",
+          "SnapBerry.Core": "[1.0.0, )",
+          "SnapBerry.Imaging": "[1.0.0, )"
+        }
+      },
+      "snapberry.imaging": {
+        "type": "Project",
+        "dependencies": {
+          "SkiaSharp": "[3.119.4, )",
           "SnapBerry.Core": "[1.0.0, )"
         }
       }

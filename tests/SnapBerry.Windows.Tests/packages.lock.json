@@ -116,11 +116,19 @@
         "type": "Project",
         "dependencies": {
           "SkiaSharp": "[3.119.4, )",
-          "SnapBerry.Core": "[1.0.0, )"
+          "SnapBerry.Core": "[1.0.0, )",
+          "SnapBerry.Imaging": "[1.0.0, )"
         }
       },
       "snapberry.core": {
         "type": "Project"
+      },
+      "snapberry.imaging": {
+        "type": "Project",
+        "dependencies": {
+          "SkiaSharp": "[3.119.4, )",
+          "SnapBerry.Core": "[1.0.0, )"
+        }
       }
     },
     "net10.0-windows7.0/win-x64": {

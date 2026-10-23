@@ -45,7 +45,7 @@ foreach ($rid in $RuntimeIdentifier) {
         $iconWriter.Write([Text.Encoding]::ASCII.GetBytes('icns'));Write-BigEndian $iconWriter ($png.Length+16)
         $iconWriter.Write([Text.Encoding]::ASCII.GetBytes($iconType));Write-BigEndian $iconWriter ($png.Length+8);$iconWriter.Write($png)
     } finally { $iconWriter.Dispose() }
-    foreach ($name in @('SnapBerry.Desktop','SnapBerry.Desktop.dll','SnapBerry.Desktop.runtimeconfig.json','libAvaloniaNative.dylib','libSkiaSharp.dylib','libhostfxr.dylib')) {
+    foreach ($name in @('SnapBerry.Desktop','SnapBerry.Desktop.dll','SnapBerry.Imaging.dll','SnapBerry.Desktop.runtimeconfig.json','libAvaloniaNative.dylib','libSkiaSharp.dylib','libhostfxr.dylib')) {
         if (-not (Test-Path -LiteralPath (Join-Path $macos $name))) { throw "번들 파일 누락: $rid/$name" }
     }
     $header=[IO.File]::ReadAllBytes((Join-Path $macos 'SnapBerry.Desktop'))

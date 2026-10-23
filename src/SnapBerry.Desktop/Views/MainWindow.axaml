@@ -70,8 +70,8 @@
        <WrapPanel Name="ToolButtons" VerticalAlignment="Center">
         <Button Classes="toolbar tool" Content="선택" Tag="0"/><Button Classes="toolbar tool" Content="화살표" Tag="1"/><Button Classes="toolbar tool" Content="텍스트" Tag="2"/>
         <Button Classes="toolbar tool" Content="사각형" Tag="3"/><Button Classes="toolbar tool" Content="모자이크" Tag="4"/><Button Classes="toolbar tool" Content="번호" Tag="5"/>
-        <Button Name="StickerButton" Classes="toolbar tool" Content="스티커"/><Button Classes="toolbar tool" Content="자르기" Tag="7"/>
-        <ComboBox Name="ToolBox" IsVisible="False" SelectedIndex="0"><ComboBoxItem Content="선택"/><ComboBoxItem Content="화살표"/><ComboBoxItem Content="텍스트"/><ComboBoxItem Content="사각형"/><ComboBoxItem Content="모자이크"/><ComboBoxItem Content="번호"/><ComboBoxItem Content="이미지 추가"/><ComboBoxItem Content="자르기"/></ComboBox>
+        <Button Name="MagicWandButton" Classes="toolbar tool" Content="마술봉" Tag="8" ToolTip.Tip="색상 클릭 → 허용 오차 조절 → Delete로 투명하게 지우기"/><Button Name="StickerButton" Classes="toolbar tool" Content="스티커"/><Button Classes="toolbar tool" Content="자르기" Tag="7"/>
+        <ComboBox Name="ToolBox" IsVisible="False" SelectedIndex="0"><ComboBoxItem Content="선택"/><ComboBoxItem Content="화살표"/><ComboBoxItem Content="텍스트"/><ComboBoxItem Content="사각형"/><ComboBoxItem Content="모자이크"/><ComboBoxItem Content="번호"/><ComboBoxItem Content="이미지 추가"/><ComboBoxItem Content="자르기"/><ComboBoxItem Content="마술봉"/></ComboBox>
        </WrapPanel>
        <Border Classes="toolbar-divider"/>
        <Button Name="AddImageButton" Classes="toolbar icon" Content="이미지 추가"/>
@@ -87,6 +87,7 @@
     <Border Name="PropertiesBorder" Grid.Row="1" Padding="12,8" Background="{DynamicResource Mac.Toolbar}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Mac.Border}">
      <ScrollViewer Name="PropertiesScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
       <WrapPanel Name="PropertiesPanel" VerticalAlignment="Center">
+       <WrapPanel Name="MagicWandControls" IsVisible="False" Classes="property"><TextBlock Text="허용 오차" Classes="property-label"/><Slider Name="MagicWandTolerance" Minimum="0" Maximum="100" Value="15" Width="120" TickFrequency="1" IsSnapToTickEnabled="True" VerticalAlignment="Center"/><TextBlock Name="MagicWandToleranceValue" Text="15%" Classes="property-label"/><CheckBox Name="MagicWandGlobal" Content="전체 색상 선택" Margin="8,0"/><Button Name="DeleteMagicWandButton" Content="선택 지우기" ToolTip.Tip="선택한 픽셀을 투명하게 지우기 · Delete"/></WrapPanel>
        <WrapPanel Name="ColorControls" Classes="property"><TextBlock Text="색상" Classes="property-label"/><TextBox Name="ColorBox" Text="#E83F56" Width="96" PlaceholderText="#RRGGBB"/><Button Name="ColorPickerButton" Content="색상 선택…"/></WrapPanel>
        <WrapPanel Name="ThicknessControls" Classes="property"><TextBlock Text="선 두께" Classes="property-label"/><NumericUpDown Name="ThicknessBox" Minimum="1" Maximum="1024" Value="3" FormatString="0"/></WrapPanel>
        <WrapPanel Name="LineStyleControls" Classes="property"><TextBlock Text="선 모양" Classes="property-label"/><ComboBox Name="LineStyleBox" SelectedIndex="0"><ComboBoxItem Content="실선"/><ComboBoxItem Content="파선"/><ComboBoxItem Content="점선"/><ComboBoxItem Content="일점쇄선"/><ComboBoxItem Content="이점쇄선"/></ComboBox></WrapPanel>
@@ -111,7 +112,7 @@
    </Grid>
   </Grid>
   <Border Grid.Row="2" Padding="14,6" Background="{DynamicResource Mac.Toolbar}" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Mac.Border}">
-   <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+   <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto,Auto">
     <TextBlock Name="StatusText" Text="준비됨" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
      <ToolTip.Tip><TextBlock Text="{Binding Text, ElementName=StatusText}" TextWrapping="Wrap" MaxWidth="480"/></ToolTip.Tip>
     </TextBlock>

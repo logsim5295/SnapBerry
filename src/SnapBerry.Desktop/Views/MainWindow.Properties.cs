@@ -71,7 +71,7 @@ public sealed partial class MainWindow
     }
     private void SelectTool(DesktopTool tool)
     {
-        if(busy||!Enum.IsDefined(tool))return;EndPropertyEditGroup();surface.CancelGesture();editor.Tool=tool;
+        if(busy||!Enum.IsDefined(tool))return;EndPropertyEditGroup();surface.CancelGesture();editor.ClearMagicWand();editor.Tool=tool;if(tool==DesktopTool.MagicWand)editor.SelectedId=null;
         selectingTool=true;try{Control<ComboBox>("ToolBox").SelectedIndex=(int)tool;}finally{selectingTool=false;}
         if(tool==DesktopTool.Image)_=RunAsync(()=>OpenImageAsync(true));RefreshSelection();
     }
@@ -105,6 +105,7 @@ public sealed partial class MainWindow
         syncingProperties=true;
         try
         {
+            Control<WrapPanel>("MagicWandControls").IsVisible=editor.Tool==DesktopTool.MagicWand;
             var style=EditsSelection?editor.Selected!.Style:editor.Style;
             if(EditsSelection)editor.Style=style;
             Control<TextBox>("ColorBox").Text=style.Color;colorBaseline=style.Color;
@@ -130,7 +131,7 @@ public sealed partial class MainWindow
         Show("TextControls",font||keycap);Show("KeycapControls",keycap);
         var mosaic=Show("MosaicControls",tool==DesktopTool.Mosaic||kind==AnnotationKind.Mosaic);
         var number=Show("NumberControls",tool==DesktopTool.Number||kind==AnnotationKind.StepMarker);
-        Control<Border>("PropertiesBorder").IsVisible=color||stroke||font||mosaic||number||keycap;
+        Control<Border>("PropertiesBorder").IsVisible=color||stroke||font||mosaic||number||keycap||has&&tool==DesktopTool.MagicWand;
         Control<Button>("ApplyTextButton").IsVisible=!keycap;Control<Button>("ApplyTextButton").IsEnabled=!busy&&editor.Selected?.Kind==AnnotationKind.Text;
         foreach(var button in Control<WrapPanel>("ToolButtons").Children.OfType<Button>().Where(b=>b.Tag is not null))
         {button.IsEnabled=!busy&&has;button.Classes.Set("active",(string)button.Tag! == ((int)tool).ToString());}

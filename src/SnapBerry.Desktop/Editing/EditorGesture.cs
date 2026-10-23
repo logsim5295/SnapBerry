@@ -11,7 +11,9 @@ public sealed class EditorGesture(DesktopEditor editor)
     public bool Active {get;private set;}
     public void Begin(PixelPoint point,double tolerance=6)
     {
-        if(editor.Document is null)return;start=point;Active=true;
+        if(editor.Document is null)return;
+        if(editor.Tool==DesktopTool.MagicWand){editor.SelectMagicWand(point,editor.MagicWandTolerance,editor.MagicWandGlobal);Cancel();return;}
+        start=point;Active=true;
         var hit=shape.Active?null:AnnotationHitTester.Hit(editor.Document.Annotations,point,tolerance);
         var editsExisting=hit is not null&&editor.Tool switch
         {

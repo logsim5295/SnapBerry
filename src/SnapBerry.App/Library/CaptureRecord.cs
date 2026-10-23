@@ -10,6 +10,8 @@ public sealed record CaptureRecord
     public int Width {get;init;}public int Height {get;init;}public CaptureMode Mode {get;init;}
     public PixelRect? CropBounds {get;init;}
     public PixelSize? ResizeSize {get;init;}
+    public string? BackgroundAssetHash {get;init;}
+    [JsonIgnore] public IEnumerable<string> ReferencedAssetHashes=>Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Concat(BackgroundAssetHash is {} hash?[hash]:[]).Distinct();
     public Annotation[] Annotations {get;init;}=[];public StepSequenceState Sequence {get;init;}=new();
     [JsonIgnore] public byte[] OriginalPng {get;init;}=[];
     [JsonIgnore] public Dictionary<string,byte[]> StickerAssets {get;init;}=[];

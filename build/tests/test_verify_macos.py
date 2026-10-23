@@ -25,6 +25,7 @@ class PackageVerificationTests(unittest.TestCase):
         self.files = {
             verifier.MACOS + name: b"fixture" for name in (
                 "SnapBerry.Desktop.dll", "SnapBerry.Core.dll", "System.Private.CoreLib.dll",
+                "SnapBerry.Imaging.dll",
                 "libcoreclr.dylib", "libhostpolicy.dylib", *verifier.LIBRARIES,
             )
         }
@@ -82,6 +83,12 @@ class PackageVerificationTests(unittest.TestCase):
         del self.files[verifier.MACOS + "libhostpolicy.dylib"]
         self.write_package()
         with self.assertRaisesRegex(ValueError, "libhostpolicy"):
+            self.verify()
+
+    def test_missing_magic_wand_library_is_rejected(self):
+        self.files.pop(verifier.MACOS + "SnapBerry.Imaging.dll", None)
+        self.write_package()
+        with self.assertRaisesRegex(ValueError, "SnapBerry.Imaging"):
             self.verify()
 
     def test_lost_executable_permissions_are_rejected(self):

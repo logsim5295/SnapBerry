@@ -74,5 +74,14 @@ public sealed class AnnotationDocument(int width,int height)
     private PixelSize? resizeSize;
     public PixelSize? ResizeSize {get=>resizeSize;set{if(value is PixelSize size)ImageResize.Validate(size);resizeSize=value;}}
     public PixelSize OutputSize=>ResizeSize??new(Width,Height);
+    private string? backgroundAssetHash;
+    public string? BackgroundAssetHash
+    {
+        get=>backgroundAssetHash;
+        set{if(value is not null&&!IsAssetHash(value))throw new ArgumentException("Invalid background image reference.",nameof(value));backgroundAssetHash=value;}
+    }
+    public IEnumerable<string> ReferencedAssetHashes=>Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Concat(BackgroundAssetHash is {} hash?[hash]:[]).Distinct();
+    public IEnumerable<string> AssetHashesWithBackground(string hash)=>Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Append(hash).Distinct();
+    public static bool IsAssetHash(string? hash)=>hash is {Length:64}&&hash.All(c=>"0123456789abcdef".Contains(c));
     public List<Annotation> Annotations {get;}=[];public StepSequenceState Sequence {get;set;}=new();
 }

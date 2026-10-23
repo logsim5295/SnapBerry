@@ -7,6 +7,9 @@ namespace SnapBerry.App.Editor;
 // 이미지 렌더링과 포인터 제스처를 담당한다. 드래그 미리보기는 문서를 바꾸지 않고 놓을 때 확정한다.
 public sealed class EditorCanvas : FrameworkElement
 {
+    private System.Windows.Media.Imaging.BitmapSource? wandOverlay;private byte[]? wandBytes;
+    private static readonly Brush checker=CreateChecker();
+    private static Brush CreateChecker(){var image=SnapBerry.App.Export.PngFileWriter.Decode(SnapBerry.Imaging.MagicWandSelection.CheckerboardPng());var brush=new ImageBrush(image){TileMode=TileMode.Tile,ViewportUnits=BrushMappingMode.Absolute,Viewport=new Rect(0,0,16,16)};brush.Freeze();return brush;}
     public EditorViewModel Model {get;set;}=null!;
     private PixelPoint start;private Annotation? before,preview;private bool dragging,resizing;private AnnotationDocument? lastDocument;
     private readonly ShapePlacement shape=new();private readonly CropPlacement crop=new();private PixelRect? lastCropBounds;private PixelSize? lastOutputSize;
@@ -22,7 +25,7 @@ public sealed class EditorCanvas : FrameworkElement
     private PixelPoint ViewPoint(MouseEventArgs e){var p=e.GetPosition(this);return new(p.X/(Model.Zoom*ScaleX),p.Y/(Model.Zoom*ScaleY));}
     internal PixelPoint ToDocumentPoint(Point point){var bounds=Model.Document?.CropBounds;return new(point.X/(Model.Zoom*ScaleX)+(bounds?.X??0),point.Y/(Model.Zoom*ScaleY)+(bounds?.Y??0));}
     private PixelPoint Point(MouseEventArgs e)=>ToDocumentPoint(e.GetPosition(this));
-    public void Refresh(){if(lastDocument!=Model.Document||lastCropBounds!=Model.Document?.CropBounds||lastOutputSize!=Model.Document?.OutputSize){CancelGesture();lastDocument=Model.Document;lastCropBounds=Model.Document?.CropBounds;lastOutputSize=Model.Document?.OutputSize;}Width=(Model.Document?.OutputSize.Width??900)*Model.Zoom;Height=(Model.Document?.OutputSize.Height??600)*Model.Zoom;InvalidateVisual();}
+    public void Refresh(){var bytes=Model.MagicWandPreview;if(!ReferenceEquals(bytes,wandBytes)){wandBytes=bytes;wandOverlay=bytes is null?null:SnapBerry.App.Export.PngFileWriter.Decode(bytes);}if(lastDocument!=Model.Document||lastCropBounds!=Model.Document?.CropBounds||lastOutputSize!=Model.Document?.OutputSize){CancelGesture();lastDocument=Model.Document;lastCropBounds=Model.Document?.CropBounds;lastOutputSize=Model.Document?.OutputSize;}Width=(Model.Document?.OutputSize.Width??900)*Model.Zoom;Height=(Model.Document?.OutputSize.Height??600)*Model.Zoom;InvalidateVisual();}
     public void CancelGesture(){shape.Cancel();crop.Cancel();dragging=false;before=null;preview=null;resizing=false;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();}
     protected override void OnLostMouseCapture(MouseEventArgs e){base.OnLostMouseCapture(e);if(dragging||crop.Active)CancelGesture();}
     internal Annotation? ShapePreview=>shape.Preview is Annotation a&&a.Kind==AnnotationKind.Mosaic?a with{MosaicBlockSize=Model.MosaicSize}:shape.Preview;
@@ -51,16 +54,17 @@ public sealed class EditorCanvas : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         // 선택 테두리와 조절점은 편집용 장식이므로 합성 이미지나 PNG에는 포함하지 않는다.
-        base.OnRender(dc);dc.DrawRectangle(Brushes.White,null,new Rect(RenderSize));if(Model.Document is null)return;
+        base.OnRender(dc);dc.DrawRectangle(Model.Document?.BackgroundAssetHash is null?Brushes.White:checker,null,new Rect(RenderSize));if(Model.Document is null)return;
         dc.PushTransform(new ScaleTransform(Model.Zoom*ScaleX,Model.Zoom*ScaleY));
         var image=Model.Composite();
-        if(preview is not null&&Model.Original is not null)
+        if(preview is not null&&Model.Background is not null)
         {
             var list=Model.Document.Annotations.ToList();var index=list.FindIndex(a=>a.Id==preview.Id);
             if(index>=0)list[index]=preview;else list.Add(preview);
-            image=new CompositeRenderer().Render(Model.Original,list,Model.Assets,Model.Document.CropBounds,Model.Document.ResizeSize);
+            image=new CompositeRenderer().Render(Model.Background,list,Model.Assets,Model.Document.CropBounds,Model.Document.ResizeSize);
         }
         if(image is not null)dc.DrawImage(image,new Rect(0,0,Model.Document.Width,Model.Document.Height));
+        if(wandOverlay is not null)dc.DrawImage(wandOverlay,new Rect(-Model.Document.CropBounds.X,-Model.Document.CropBounds.Y,Model.Document.SourceWidth,Model.Document.SourceHeight));
         var selected=preview??Model.Selected;
         if(selected is not null&&Model.Tool!=EditorTool.Crop)
         {
@@ -101,6 +105,7 @@ public sealed class EditorCanvas : FrameworkElement
         base.OnMouseLeftButtonDown(e);if(Model.Document is null)return;Focus();start=Point(e);
         try
         {
+            if(Model.Tool==EditorTool.MagicWand){Model.SelectMagicWand(start,Model.MagicWandTolerance,Model.MagicWandGlobal);e.Handled=true;return;}
             if(Model.Tool==EditorTool.Crop)
             {if(BeginCrop(ViewPoint(e))&&!CaptureMouse())CancelGesture();e.Handled=true;return;}
             var shapeKind=Model.Tool switch{EditorTool.Arrow=>AnnotationKind.Arrow,EditorTool.Rectangle=>AnnotationKind.Rectangle,EditorTool.Number=>AnnotationKind.StepMarker,EditorTool.Sticker=>AnnotationKind.Sticker,EditorTool.Text=>AnnotationKind.Text,_=>AnnotationKind.Mosaic};
@@ -175,12 +180,12 @@ public sealed class EditorCanvas : FrameworkElement
     }
     protected override void OnKeyDown(KeyEventArgs e)
     {
-        base.OnKeyDown(e);if(e.Key==Key.Escape){CancelGesture();e.Handled=true;}
+        base.OnKeyDown(e);if(e.Key==Key.Escape){Model.ClearMagicWand();CancelGesture();e.Handled=true;}
         if(e.Key==Key.Delete&&Model.SelectedId is not null){DeleteSelected();e.Handled=true;}
     }
     public void DeleteSelected()
     {
-        CancelGesture();if(Model.SelectedId is not Guid id)return;
+        CancelGesture();if(Model.DeleteMagicWandSelection()){SelectionChanged?.Invoke();InvalidateVisual();return;}if(Model.SelectedId is not Guid id)return;
         Model.SelectedId=null;Model.History?.Remove(id);SelectionChanged?.Invoke();InvalidateVisual();
     }
     private void CommitShape(Annotation? value){if(value is null)return;if(value.Kind==AnnotationKind.Mosaic)value=value with{MosaicBlockSize=Model.MosaicSize};Model.SelectedId=value.Id;Model.History!.Add(value);}

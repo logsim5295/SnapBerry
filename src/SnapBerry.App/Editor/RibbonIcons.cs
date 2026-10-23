@@ -50,6 +50,10 @@ public static class RibbonIcons
                 case "Text":Shape("M4,5 L28,5 L28,11 L23,11 L23,9 L19,9 L19,26 L23,26 L23,30 L9,30 L9,26 L13,26 L13,9 L9,9 L9,11 L4,11 Z",Berry);break;
                 case "Rectangle":
                     dc.DrawRectangle(null,Pen(Ink),new Rect(6,6,20,20));foreach(var (x,y) in new[]{(3d,3d),(23d,3d),(3d,23d),(23d,23d)})Box(x,y,6,6,Yellow,1);break;
+                case "MagicWand":
+                    Line(5,27,23,9,Ink,7);Line(5,27,23,9,Berry,4);Line(20,12,24,8,Yellow,4);
+                    Shape("M8,2 L10,7 L15,9 L10,11 L8,16 L6,11 L1,9 L6,7 Z",Yellow);
+                    Line(25,20,31,20,Yellow,2);Line(28,17,28,23,Yellow,2);break;
                 case "Crop":
                     dc.DrawRectangle(Yellow,Pen(Ink),new Rect(12,12,8,8));
                     Line(9,3,9,23,Berry,4);Line(9,23,29,23,Berry,4);

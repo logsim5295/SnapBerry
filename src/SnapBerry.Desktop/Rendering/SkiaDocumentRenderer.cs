@@ -17,7 +17,11 @@ public static class SkiaDocumentRenderer
     {using var data=image.Encode(SKEncodedImageFormat.Png,100)??throw new InvalidDataException("PNG 변환에 실패했습니다.");return data.ToArray();}
     public static byte[] Render(byte[] original,AnnotationDocument document,IReadOnlyDictionary<string,byte[]> assets)
     {
-        using var source=Decode(original);using var mosaic=Mosaic(source,document.Annotations);
+        if(document.BackgroundAssetHash is {} hash)
+            original=assets.TryGetValue(hash,out var background)?background:throw new InvalidDataException("누끼 이미지가 없습니다.");
+        using var source=Decode(original);
+        if(source.Width!=document.SourceWidth||source.Height!=document.SourceHeight)throw new InvalidDataException("이미지 크기가 원본과 다릅니다.");
+        using var mosaic=Mosaic(source,document.Annotations);
         var size=document.OutputSize;ImageDimensions.GuardSize(size.Width,size.Height);
         using var colorSpace=SKColorSpace.CreateSrgb();
         using var output=new SKBitmap(new SKImageInfo(size.Width,size.Height,SKColorType.Bgra8888,SKAlphaType.Premul,colorSpace));using var canvas=new SKCanvas(output);canvas.Clear(SKColors.Transparent);

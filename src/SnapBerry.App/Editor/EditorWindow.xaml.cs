@@ -75,6 +75,7 @@ public partial class EditorWindow : Window
             try{imagePan.Cancel();canvas.Refresh();UpdateCommands();UpdateNumber();UpdateProperties();if(Model.History is not null){autosave.Queue(Model.Snapshot(),Model.History.CurrentStateToken);StatusText.Text="저장 중…";}}
             catch(Exception e){StatusText.Text=e.Message;}
         };
+        Model.MagicWandChanged+=(_,_)=>{canvas.Refresh();UpdateCommands();UpdateProperties();if(Model.Tool==EditorTool.MagicWand)StatusText.Text=Model.HasPixelSelection?$"{Model.MagicWandCount:N0} 픽셀 선택됨 · Delete로 지우기 · Esc로 취소":"마술봉: 원본 이미지의 색상을 클릭하세요.";};
         canvas.TextRequested+=EditText;canvas.SelectionChanged+=()=>{UpdateProperties();UpdateCommands();};ready=true;UpdateCommands();UpdateProperties();
         Loaded+=async(_,_)=>{FitInitialWindow();DiagnosticStage?.Invoke("library.load.begin");await SafeAsync(RefreshLibraryAsync);DiagnosticStage?.Invoke("library.load.end");};Closing+=WindowClosing;PreviewKeyDown+=WindowKeyDown;
         IsVisibleChanged+=(_,_)=>{if(!IsVisible)imagePan.Cancel();UpdateStickerPickerVisibility();};Deactivated+=(_,_)=>imagePan.Cancel();
@@ -199,6 +200,7 @@ public partial class EditorWindow : Window
         // 문서 유무·선택 종류·작업 중 상태에 따라 의미 있는 명령만 활성화한다.
         if(!ready)return;
         var hasDocument=Model.Document is not null;
+        MagicWandButton.IsEnabled=!busy&&hasDocument;DeleteMagicWandButton.IsEnabled=!busy&&Model.HasPixelSelection;
         ImageSizeButton.IsEnabled=!busy&&hasDocument;
         ImageSizeButton.Content=Model.Document is { } document?$"{document.OutputSize.Width} × {document.OutputSize.Height} px":"이미지 없음";
         ToolsPanel.IsEnabled=!busy&&hasDocument;PropertiesGroup.IsEnabled=PropertiesPanel.IsEnabled=!busy&&hasDocument&&Model.Tool!=EditorTool.Crop;
@@ -206,7 +208,7 @@ public partial class EditorWindow : Window
         if(!hasDocument)CloseStickerPicker();
         EmptyEditorState.Visibility=hasDocument?Visibility.Collapsed:Visibility.Visible;
         UndoButton.IsEnabled=!busy&&Model.History?.CanUndo==true;RedoButton.IsEnabled=!busy&&Model.History?.CanRedo==true;
-        CopyButton.IsEnabled=SaveButton.IsEnabled=!busy&&hasDocument;DeleteButton.IsEnabled=!busy&&Model.Selected is not null;EditButton.IsEnabled=!busy&&CanEditContent(Model.Selected);ZoomText.Text=$"{Model.Zoom:P0}";
+        CopyButton.IsEnabled=SaveButton.IsEnabled=!busy&&hasDocument;DeleteButton.IsEnabled=!busy&&(Model.Selected is not null||Model.HasPixelSelection);EditButton.IsEnabled=!busy&&CanEditContent(Model.Selected);ZoomText.Text=$"{Model.Zoom:P0}";
     }
     private void UpdateProperties()
     {
@@ -224,6 +226,7 @@ public partial class EditorWindow : Window
         var editsLine=t is EditorTool.Arrow or EditorTool.Rectangle||(t==EditorTool.Select&&Model.Selected?.Kind is AnnotationKind.Arrow or AnnotationKind.Rectangle);
         LineStyleControls.Visibility=editsLine?Visibility.Visible:Visibility.Collapsed;LineStyleControls.IsEnabled=editsLine;
         FontControls.Visibility=t==EditorTool.Text||(t==EditorTool.Select&&Model.Selected?.Kind==AnnotationKind.Text)?Visibility.Visible:Visibility.Collapsed;MosaicControls.Visibility=t==EditorTool.Mosaic||(t==EditorTool.Select&&Model.Selected?.Kind==AnnotationKind.Mosaic)?Visibility.Visible:Visibility.Collapsed;
+        MagicWandControls.Visibility=t==EditorTool.MagicWand?Visibility.Visible:Visibility.Collapsed;
         NumberControls.Visibility=t==EditorTool.Number?Visibility.Visible:Visibility.Collapsed;StickerChooseButton.Visibility=t==EditorTool.Sticker?Visibility.Visible:Visibility.Collapsed;
         NumberTextColorButton.Visibility=t==EditorTool.Number||(t==EditorTool.Select&&Model.Selected?.Kind==AnnotationKind.StepMarker)?Visibility.Visible:Visibility.Collapsed;
         PropertiesGroup.Visibility=Model.Document is not null&&PropertiesPanel.Children.OfType<UIElement>().Any(child=>child.Visibility==Visibility.Visible)?Visibility.Visible:Visibility.Collapsed;
@@ -246,8 +249,8 @@ public partial class EditorWindow : Window
     }
     private void ToolClick(object sender,RoutedEventArgs e)
     {
-        if(busy||Model.Document is null||sender is not ToggleButton button)return;EndPropertyDrag();canvas.CancelGesture();Model.Tool=Enum.Parse<EditorTool>((string)button.Tag);foreach(var item in ToolsPanel.Items.OfType<ToggleButton>())item.IsChecked=item==button;
-        if(Model.Tool==EditorTool.Crop)Model.SelectedId=null;
+        if(busy||Model.Document is null||sender is not ToggleButton button)return;EndPropertyDrag();canvas.CancelGesture();Model.ClearMagicWand();Model.Tool=Enum.Parse<EditorTool>((string)button.Tag);foreach(var item in ToolsPanel.Items.OfType<ToggleButton>())item.IsChecked=item==button;
+        if(Model.Tool is EditorTool.Crop or EditorTool.MagicWand)Model.SelectedId=null;
         UpdateCommands();UpdateProperties();canvas.Cursor=Model.Tool is EditorTool.Select or EditorTool.Crop?Cursors.Arrow:Cursors.Cross;canvas.InvalidateVisual();
         if(Model.Tool==EditorTool.Sticker)ChooseStickerClick(sender,e);else CloseStickerPicker();
     }
@@ -256,7 +259,7 @@ public partial class EditorWindow : Window
     private void AboutClick(object sender,RoutedEventArgs e)
     {if(busy)return;SetBusy(true);try{new AboutWindow{Owner=this,Icon=Icon}.ShowDialog();}finally{SetBusy(false);}}
     private void UndoClick(object sender,RoutedEventArgs e){canvas.CancelGesture();Model.History?.Undo();}private void RedoClick(object sender,RoutedEventArgs e){canvas.CancelGesture();Model.History?.Redo();}
-    private void DeleteAnnotationClick(object sender,RoutedEventArgs e)=>canvas.DeleteSelected();
+    private void DeleteAnnotationClick(object sender,RoutedEventArgs e)=>DeleteSelectionSafely();
     private static bool CanEditContent(Annotation? annotation)=>annotation is not null&&(annotation.Kind is AnnotationKind.Text or AnnotationKind.StepMarker||(annotation.Kind==AnnotationKind.Sticker&&annotation.StickerId.StartsWith("key-")));
     private void EditAnnotationClick(object sender,RoutedEventArgs e){if(Model.Selected is Annotation a&&CanEditContent(a))EditText(new(a.X,a.Y),a);}
     private void EditText(PixelPoint position,Annotation? annotation)
@@ -485,13 +488,15 @@ public partial class EditorWindow : Window
     private void FitClick(object sender,RoutedEventArgs e)=>Fit();private void ZoomOutClick(object sender,RoutedEventArgs e)=>SetZoom(Model.Zoom/1.25);private void ZoomInClick(object sender,RoutedEventArgs e)=>SetZoom(Model.Zoom*1.25);
     private void WindowKeyDown(object sender,KeyEventArgs e)
     {
+        if(e.Key==Key.Escape&&Model.HasPixelSelection){Model.ClearMagicWand();e.Handled=true;return;}
         if(e.Key==Key.Escape&&imagePan.IsActive){imagePan.Cancel();e.Handled=true;return;}
         if(e.Key==Key.Escape&&!busy&&stickerPicker is not null){canvas.CancelGesture();CloseStickerPicker();e.Handled=true;return;}
         if(IsTextInput(e.OriginalSource as DependencyObject)||busy)return;
         // 캔버스 밖의 리본·속성 컨트롤에 포커스가 있어도 선택 개체를 삭제한다.
         // 이력 목록의 Delete는 기존 이력 삭제 처리로 전달한다.
+        if(e.Key==Key.Delete&&Model.HasPixelSelection&&!IsHistoryCopySource(e.OriginalSource as DependencyObject)){DeleteSelectionSafely();e.Handled=true;return;}
         if(e.Key==Key.Delete&&!IsHistoryCopySource(e.OriginalSource as DependencyObject)&&Model.Selected is not null)
-        {canvas.DeleteSelected();e.Handled=true;return;}
+        {DeleteSelectionSafely();e.Handled=true;return;}
         if(Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {if(e.Key==Key.Z){canvas.CancelGesture();Model.History?.Undo();e.Handled=true;}else if(e.Key==Key.Y){canvas.CancelGesture();Model.History?.Redo();e.Handled=true;}else if(e.Key==Key.S){SaveClick(this,new());e.Handled=true;}}
     }
@@ -521,7 +526,7 @@ public partial class EditorWindow : Window
         }
         Hide();
     }
-    public void CloseForExit(){EndPropertyDrag();SaveHistoryWidth();CloseStickerPicker();allowClose=true;autosave.Dispose();Close();}
+    public void CloseForExit(){Model.ClearMagicWand();EndPropertyDrag();SaveHistoryWidth();CloseStickerPicker();allowClose=true;autosave.Dispose();Close();}
     public void ReloadSettings(){settings=settingsService.Load();ThemeResources.Apply(this,settings.Theme);ThemeResources.ApplyToApplication(settings.Theme);InitializeRibbonIcons();UpdateCaptureTooltips();}
     private void UpdateCaptureTooltips()
     {
