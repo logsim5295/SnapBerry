@@ -2,7 +2,7 @@
 
 Windows 개인 업무용 화면 캡처 및 주석 편집 앱입니다. C#/.NET 10과 WPF로 구현했습니다.
 
-**Windows 다운로드:** [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest) · [v1.1.0 ZIP](https://github.com/logsim5295/SnapBerry/releases/download/v1.1.0/SnapBerry-v1.1.0-win-x64.zip) · [최신 EXE](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry.exe)
+**Windows 다운로드:** [최신 릴리스의 ZIP](https://github.com/logsim5295/SnapBerry/releases/latest) · [최신 EXE](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry.exe)
 
 **macOS 다운로드:** [Apple Silicon DMG](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-arm64.dmg) · [Intel DMG](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-x64.dmg)
 
@@ -26,7 +26,7 @@ GitHub 공개 저장소는 GitHub 서비스 약관이 허용하는 범위에서 
 
 Windows x64용 포터블 앱입니다. 설치 프로그램, 별도 .NET 설치 또는 관리자 권한이 필요하지 않습니다.
 
-1. [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest)에서 Windows 배포 ZIP을 다운로드합니다. 현재 배포본은 [SnapBerry-v1.1.0-win-x64.zip](https://github.com/logsim5295/SnapBerry/releases/download/v1.1.0/SnapBerry-v1.1.0-win-x64.zip)입니다.
+1. [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest)에서 Windows 배포 ZIP(`SnapBerry-v<버전>-win-x64.zip`)을 다운로드합니다.
 2. ZIP 전체를 원하는 폴더에 압축 해제합니다. `SnapBerry.exe`, `LICENSE.txt`, `DATA-PROCESSING.md`, `THIRD-PARTY-NOTICES.md`가 함께 들어 있습니다.
 3. 이용약관과 데이터 처리 안내를 확인한 뒤 `SnapBerry.exe`를 실행합니다. 약관·안내는 앱의 **정보 → 이용약관 및 데이터 처리 안내**에서도 읽을 수 있습니다.
 
@@ -119,6 +119,21 @@ dotnet build SnapBerry.sln -c Release
 dotnet test SnapBerry.sln -c Release
 dotnet publish src/SnapBerry.App/SnapBerry.App.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:PublishTrimmed=false -o artifacts/SnapBerry-win-x64
 ```
+
+## 버전 태그 자동 릴리스
+
+[Release Actions](https://github.com/logsim5295/SnapBerry/actions/workflows/release.yml)는 `v1.2.3` 형식의 새 버전 태그를 푸시하면 Windows x64 EXE·ZIP과 Apple Silicon·Intel macOS DMG를 빌드해 공개 릴리스에 첨부합니다. 안내 문서와 `SHA256SUMS.txt`도 함께 올리며, 다운로드에는 GitHub 로그인이 필요하지 않습니다.
+
+```powershell
+git tag -a v1.2.3 -m 'SnapBerry 1.2.3 공개 배포'
+git push origin v1.2.3
+```
+
+위 버전은 예시입니다. 태그를 만들기 전에 배포할 변경을 커밋하고 main에 반영하세요. 태그의 커밋에는 `.github/workflows/release.yml`과 배포 도구가 있어야 합니다. 태그는 `vMAJOR.MINOR.PATCH` 형식의 정식 버전만 지원하며 각 숫자는 0~65534, 불필요한 앞자리 0은 허용하지 않습니다. 시험용 접미사나 빌드 메타데이터가 붙은 태그는 거부합니다. 앱과 macOS 번들의 버전은 빌드 서버의 작업 사본에서 태그 번호로 설정하므로 별도의 버전 파일 수정 커밋은 필요하지 않습니다.
+
+세 플랫폼의 빌드·헤드리스 테스트·패키지 검사가 모두 성공해야 릴리스를 준비합니다. 파일 8개의 업로드 크기·SHA-256을 확인한 뒤 초안을 공개하므로 실패 중인 배포는 공개하지 않습니다. 새 Release 워크플로는 앱 실행·실제 화면 캡처·클립보드·전역 키 입력을 수행하지 않습니다. 기존 macOS 브랜치 검증은 별도로 유지합니다.
+
+실패한 실행은 Actions에서 **Re-run failed jobs**로 재시도할 수 있습니다. 미완성 초안은 같은 태그에서 재사용하며 이미 공개된 릴리스는 덮어쓰지 않습니다. **Run workflow**는 선택한 브랜치의 코드로 입력한 버전의 빌드·패키지 검증만 수행하고 새 태그나 릴리스를 만들지 않습니다. 검증 산출물은 `release-files` Artifact에서 14일 동안 받을 수 있습니다. 공개 릴리스 작업에는 저장소의 기본 `GITHUB_TOKEN`을 사용하며 별도 PAT 등록은 필요하지 않습니다. Windows EXE의 Git LFS 갱신·커밋 규칙은 기존과 같습니다.
 
 ## 검증 범위
 

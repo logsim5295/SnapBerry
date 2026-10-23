@@ -2,6 +2,8 @@ name: macOS verification
 
 on:
   push:
+    branches:
+      - '**'
     paths:
       - '.github/workflows/macos.yml'
       - 'build/**'
