@@ -5,6 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 
 namespace SnapBerry.Desktop.Views;
 
@@ -25,13 +27,18 @@ public sealed class AboutWindow : Window
         ArgumentNullException.ThrowIfNull(open);ArgumentNullException.ThrowIfNull(copy);
         var names=new NameScope();NameScope.SetNameScope(this,names);
         void Register(string name,Control control){control.Name=name;names.Register(name,control);}
-        Title="SnapBerry 정보";Width=540;Height=650;MinWidth=380;MinHeight=340;ShowInTaskbar=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
-        var panel=new StackPanel{Margin=new Thickness(22),Spacing=12};Content=new ScrollViewer{Content=panel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};
-        var product=new TextBlock{Text="SnapBerry",FontSize=26,FontWeight=FontWeight.SemiBold};Register("AboutProductName",product);panel.Children.Add(product);
-        var version=new TextBlock{Text=$"개발 버전: {DevelopmentVersion}"};Register("AboutVersion",version);panel.Children.Add(version);
-        panel.Children.Add(new TextBlock{Text="만든이: ynsim"});
-        var author=new Button{Content=AuthorEmail};Register("AboutAuthorLink",author);panel.Children.Add(author);
-        var github=new Button{Content="GitHub · logsim5295/SnapBerry"};Register("GitHubLink",github);panel.Children.Add(github);
+        Title="SnapBerry 정보";Width=500;SizeToContent=SizeToContent.Height;MaxHeight=700;MinWidth=420;MinHeight=340;ShowInTaskbar=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        var panel=new StackPanel{Margin=new Thickness(28),Spacing=12};Content=new ScrollViewer{Content=panel,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled};
+        var identity=new Grid{ColumnDefinitions=new("80,*"),Margin=new Thickness(0,0,0,8)};panel.Children.Add(identity);
+        using var iconStream=AssetLoader.Open(new Uri("avares://SnapBerry.Desktop/Assets/App.png"));
+        var bitmap=new Bitmap(iconStream);var icon=new Image{Source=bitmap,Width=64,Height=64,VerticalAlignment=VerticalAlignment.Center};Register("AboutAppIcon",icon);identity.Children.Add(icon);Closed+=(_,_)=>bitmap.Dispose();
+        var heading=new StackPanel{Spacing=5,VerticalAlignment=VerticalAlignment.Center};Grid.SetColumn(heading,1);identity.Children.Add(heading);
+        var product=new TextBlock{Text="SnapBerry",FontSize=26,FontWeight=FontWeight.SemiBold};Register("AboutProductName",product);heading.Children.Add(product);
+        var version=new TextBlock{Text=$"개발 버전: {DevelopmentVersion}"};version.Classes.Add("caption");Register("AboutVersion",version);heading.Children.Add(version);
+        var creator=new TextBlock{Text="만든이: ynsim"};creator.Classes.Add("caption");heading.Children.Add(creator);
+        var links=new WrapPanel{Orientation=Orientation.Horizontal};panel.Children.Add(links);
+        var author=new Button{Content=AuthorEmail,Margin=new Thickness(0,0,8,6)};Register("AboutAuthorLink",author);links.Children.Add(author);
+        var github=new Button{Content="GitHub · logsim5295/SnapBerry"};Register("GitHubLink",github);links.Children.Add(github);
         var details=new Expander{Header="상세 정보",HorizontalAlignment=HorizontalAlignment.Stretch,Content=new TextBlock{Text=Diagnostics,TextWrapping=TextWrapping.Wrap}};Register("AboutDetails",details);panel.Children.Add(details);
         var documents=new TabControl{Height=280};Register("AboutLegalDocuments",documents);
         foreach(var (label,resource) in new[]{("이용약관","Terms"),("데이터 처리","DataProcessing"),("외부 구성 요소","ThirdParty")})
@@ -58,6 +65,6 @@ public sealed class AboutWindow : Window
         folder.Click+=async (_,_)=>await ReportAsync(folder,()=>OpenAsync(dataDirectory),"저장 폴더 열림");
         github.Click+=async (_,_)=>await ReportAsync(github,()=>OpenAsync("https://github.com/logsim5295/SnapBerry"),"GitHub 저장소 열림");
         author.Click+=async (_,_)=>await ReportAsync(author,()=>OpenAsync("mailto:"+AuthorEmail),"메일 앱 열림");
-        var close=new Button{Content="닫기",IsCancel=true,IsDefault=true,HorizontalAlignment=HorizontalAlignment.Right};Register("CloseAboutButton",close);close.Click+=(_,_)=>Close();panel.Children.Add(close);
+        var close=new Button{Content="닫기",IsCancel=true,IsDefault=true,HorizontalAlignment=HorizontalAlignment.Right,MinWidth=76};close.Classes.Add("primary");Register("CloseAboutButton",close);close.Click+=(_,_)=>Close();panel.Children.Add(close);
     }
 }

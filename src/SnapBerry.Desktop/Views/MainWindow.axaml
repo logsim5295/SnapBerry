@@ -1,72 +1,126 @@
 <Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="SnapBerry.Desktop.Views.MainWindow"
- Title="SnapBerry" Width="1240" Height="820" MinWidth="820" MinHeight="560" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+ Title="SnapBerry" Width="1240" Height="820" MinWidth="820" MinHeight="560" Background="{DynamicResource Mac.Window}">
  <Window.Styles>
-  <Style Selector="Button"><Setter Property="Padding" Value="10,6"/><Setter Property="Margin" Value="3"/></Style>
-  <Style Selector="Button.active"><Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}"/></Style>
+  <Style Selector="Button"><Setter Property="Margin" Value="2"/></Style>
+  <Style Selector="Button.toolbar"><Setter Property="Height" Value="32"/><Setter Property="Padding" Value="10,5"/></Style>
+  <Style Selector="Button.icon"><Setter Property="Width" Value="32"/><Setter Property="Padding" Value="7"/></Style>
   <Style Selector="TextBox"><Setter Property="Margin" Value="3"/></Style>
   <Style Selector="ComboBox"><Setter Property="Margin" Value="3"/><Setter Property="MinWidth" Value="90"/></Style>
-  <Style Selector="NumericUpDown"><Setter Property="Margin" Value="3"/><Setter Property="Width" Value="90"/></Style>
+  <Style Selector="NumericUpDown"><Setter Property="Margin" Value="3"/><Setter Property="Width" Value="124"/></Style>
+  <Style Selector="WrapPanel.property"><Setter Property="Margin" Value="0,0,14,0"/></Style>
  </Window.Styles>
- <Grid RowDefinitions="Auto,Auto,*,Auto">
-  <TabControl Name="RibbonTabs" Padding="8,0" BorderThickness="0,0,0,1">
-   <TabItem Header="홈">
-    <WrapPanel Name="CommandPanel" Margin="0,4,0,8">
-     <StackPanel Margin="3,0,12,0"><WrapPanel>
-      <Button Name="OpenButton" Content="이미지 열기" ToolTip.Tip="Command+O"/>
-      <Button Name="PasteButton" Content="붙여넣기" ToolTip.Tip="Command+V"/>
-      <Button Name="AddImageButton" Content="이미지 추가"/>
-      <Button Name="RegionButton" Content="영역 캡처"/><Button Name="WindowButton" Content="창 캡처"/>
-      <Button Name="DisplayButton" Content="전체 화면" ToolTip.Tip="연결된 모든 모니터 캡처"/>
-     </WrapPanel><TextBlock Text="이미지 및 캡처" HorizontalAlignment="Center" FontSize="11" Opacity=".7"/></StackPanel>
-     <StackPanel Margin="3,0,12,0"><WrapPanel Name="ToolButtons">
-      <Button Content="선택" Tag="0"/><Button Content="화살표" Tag="1"/><Button Content="텍스트" Tag="2"/>
-      <Button Content="사각형" Tag="3"/><Button Content="모자이크" Tag="4"/><Button Content="번호" Tag="5"/>
-      <Button Name="StickerButton" Content="스티커"/><Button Content="자르기" Tag="7"/>
-      <ComboBox Name="ToolBox" IsVisible="False" SelectedIndex="0"><ComboBoxItem Content="선택"/><ComboBoxItem Content="화살표"/><ComboBoxItem Content="텍스트"/><ComboBoxItem Content="사각형"/><ComboBoxItem Content="모자이크"/><ComboBoxItem Content="번호"/><ComboBoxItem Content="이미지 추가"/><ComboBoxItem Content="자르기"/></ComboBox>
-     </WrapPanel><TextBlock Text="도구" HorizontalAlignment="Center" FontSize="11" Opacity=".7"/></StackPanel>
-     <StackPanel Margin="3,0,12,0"><WrapPanel>
-      <Button Name="UndoButton" Content="실행 취소" ToolTip.Tip="Command+Z"/><Button Name="RedoButton" Content="다시 실행" ToolTip.Tip="Command+Shift+Z"/>
-      <Button Name="DuplicateButton" Content="복제" ToolTip.Tip="Command+D"/><Button Name="DeleteButton" Content="삭제"/>
-      <Button Name="EditTextButton" Content="내용 편집"/>
-     </WrapPanel><TextBlock Text="편집" HorizontalAlignment="Center" FontSize="11" Opacity=".7"/></StackPanel>
-     <StackPanel Margin="3,0,12,0"><WrapPanel><Button Name="CopyButton" Content="이미지 복사" ToolTip.Tip="Command+C"/><Button Name="SaveButton" Content="PNG 저장" ToolTip.Tip="Command+S"/></WrapPanel><TextBlock Text="내보내기" HorizontalAlignment="Center" FontSize="11" Opacity=".7"/></StackPanel>
-     <StackPanel><WrapPanel><Button Name="SettingsButton" Content="설정"/><Button Name="HotkeyButton" Content="단축키 설정"/><Button Name="AboutButton" Content="정보"/></WrapPanel><TextBlock Text="설정 및 정보" HorizontalAlignment="Center" FontSize="11" Opacity=".7"/></StackPanel>
-    </WrapPanel>
-   </TabItem>
-   <TabItem Header="보기"><WrapPanel Name="ViewCommands" Margin="0,4,0,8">
-    <Button Name="ViewZoomOutButton" Content="축소"/><Button Name="ViewZoomInButton" Content="확대"/><Button Name="ViewFitButton" Content="창에 맞춤"/>
-    <Button Name="ViewHistoryButton" Content="이력 목록 표시"/>
-    <ComboBox Name="ThemeBox" SelectedIndex="0"><ComboBoxItem Content="화이트 모드"/><ComboBoxItem Content="다크 모드"/></ComboBox>
-   </WrapPanel></TabItem>
-  </TabControl>
-  <Border Name="PropertiesBorder" Grid.Row="1" Padding="10,5" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
-   <WrapPanel Name="PropertiesPanel" VerticalAlignment="Center">
-    <WrapPanel Name="ColorControls"><TextBlock Text="색상" VerticalAlignment="Center" Margin="5,0"/><TextBox Name="ColorBox" Text="#E83F56" Width="100" PlaceholderText="#RRGGBB"/><Button Name="ColorPickerButton" Content="색상 선택…"/></WrapPanel>
-    <WrapPanel Name="ThicknessControls"><TextBlock Text="선 두께" VerticalAlignment="Center" Margin="9,0,0,0"/><NumericUpDown Name="ThicknessBox" Minimum="1" Maximum="1024" Value="3" FormatString="0"/></WrapPanel>
-    <WrapPanel Name="LineStyleControls"><TextBlock Text="선 모양" VerticalAlignment="Center" Margin="9,0,0,0"/><ComboBox Name="LineStyleBox" SelectedIndex="0"><ComboBoxItem Content="실선"/><ComboBoxItem Content="파선"/><ComboBoxItem Content="점선"/><ComboBoxItem Content="일점쇄선"/><ComboBoxItem Content="이점쇄선"/></ComboBox></WrapPanel>
-    <WrapPanel Name="FontControls"><TextBlock Text="글자 크기" VerticalAlignment="Center" Margin="9,0,0,0"/><NumericUpDown Name="FontBox" Minimum="1" Maximum="4096" Value="24" FormatString="0"/></WrapPanel>
-    <WrapPanel Name="TextControls"><TextBox Name="TextEntry" Text="텍스트" Width="180" PlaceholderText="텍스트 내용"/><Button Name="ApplyTextButton" Content="선택 텍스트 변경"/></WrapPanel>
-    <WrapPanel Name="MosaicControls"><TextBlock Text="블록 크기" VerticalAlignment="Center" Margin="5,0"/><Slider Name="MosaicSlider" Minimum="4" Maximum="64" Value="12" TickFrequency="1" IsSnapToTickEnabled="True" Width="140" VerticalAlignment="Center"/><TextBlock Name="MosaicValueText" Text="12 px" VerticalAlignment="Center" Margin="5,0"/></WrapPanel>
-    <WrapPanel Name="NumberControls"><ComboBox Name="NumberModeBox" SelectedIndex="0"><ComboBoxItem Content="1, 2, 3"/><ComboBoxItem Content="a, b, c"/><ComboBoxItem Content="A, B, C"/></ComboBox><TextBlock Text="다음 순번" VerticalAlignment="Center" Margin="5,0"/><TextBox Name="NextNumberBox" Text="1" Width="85"/><Button Name="NumberTextColorButton" Content="글자색: 흰색"/></WrapPanel>
-    <WrapPanel Name="KeycapControls"><Button Name="ApplyKeycapButton" Content="키 라벨 변경"/></WrapPanel>
-   </WrapPanel>
+ <Grid RowDefinitions="Auto,*,Auto">
+  <Border Name="CommandBar" Height="64" Padding="14,10" Background="{DynamicResource Mac.Toolbar}" BorderBrush="{DynamicResource Mac.Border}" BorderThickness="0,0,0,1">
+   <Grid ColumnDefinitions="*,Auto">
+    <ScrollViewer Name="CommandScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+     <WrapPanel Name="CommandPanel" VerticalAlignment="Center">
+      <Button Name="HistoryToggleButton" Classes="toolbar icon" Content="이력 숨기기"/>
+      <Border Classes="toolbar-divider"/>
+      <Button Name="OpenButton" Classes="toolbar" Content="열기" ToolTip.Tip="이미지 열기 · ⌘O"/>
+      <Button Name="PasteButton" Classes="toolbar icon" Content="붙여넣기" ToolTip.Tip="이미지 붙여넣기 · ⌘V"/>
+      <Border Classes="toolbar-divider"/>
+      <Button Name="RegionButton" Classes="toolbar primary" Content="영역 캡처"/>
+      <Button Name="WindowButton" Classes="toolbar" Content="창" ToolTip.Tip="창 캡처"/>
+      <Button Name="DisplayButton" Classes="toolbar" Content="전체 화면" ToolTip.Tip="연결된 모든 모니터 캡처"/>
+      <Border Classes="toolbar-divider"/>
+      <Button Name="CopyButton" Classes="toolbar icon" Content="이미지 복사" ToolTip.Tip="이미지 복사 · ⌘C"/>
+      <Button Name="SaveButton" Classes="toolbar" Content="PNG 저장" ToolTip.Tip="PNG 저장 · ⌘S"/>
+     </WrapPanel>
+    </ScrollViewer>
+    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
+     <Button Name="ViewOptionsButton" Classes="toolbar icon" Content="보기">
+      <Button.Flyout><Flyout Placement="BottomEdgeAlignedRight">
+       <StackPanel Name="ViewCommands" Width="220" Spacing="6" Margin="4">
+        <TextBlock Classes="section-title" Text="보기" Margin="8,2,0,6"/>
+        <Button Name="ViewZoomOutButton" Content="축소" HorizontalAlignment="Stretch"/>
+        <Button Name="ViewZoomInButton" Content="확대" HorizontalAlignment="Stretch"/>
+        <Button Name="ViewFitButton" Content="창에 맞춤" HorizontalAlignment="Stretch"/>
+        <Button Name="ViewHistoryButton" Content="이력 목록 표시 / 숨기기" HorizontalAlignment="Stretch"/>
+        <TextBlock Classes="caption" Text="화면 테마" Margin="8,8,0,0"/>
+        <ComboBox Name="ThemeBox" SelectedIndex="0" HorizontalAlignment="Stretch"><ComboBoxItem Content="라이트"/><ComboBoxItem Content="다크"/></ComboBox>
+       </StackPanel>
+      </Flyout></Button.Flyout>
+     </Button>
+     <Button Name="HotkeyButton" Classes="toolbar icon" Content="단축키 설정"/>
+     <Button Name="SettingsButton" Classes="toolbar icon" Content="설정"/>
+     <Button Name="AboutButton" Classes="toolbar icon" Content="정보"/>
+    </StackPanel>
+   </Grid>
   </Border>
-  <Grid Name="WorkspaceGrid" Grid.Row="2" ColumnDefinitions="240,5,*">
-   <Border Name="HistoryPanel" Padding="10" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+  <Grid Name="WorkspaceGrid" Grid.Row="1" ColumnDefinitions="240,5,*">
+   <Border Name="HistoryPanel" Padding="14,18,10,12" Background="{DynamicResource Mac.Sidebar}">
     <Grid RowDefinitions="Auto,Auto,*,Auto">
-     <TextBlock Text="캡처 이력" FontSize="16" FontWeight="SemiBold" Margin="4,4,0,10"/>
-     <TextBox Name="SearchBox" Grid.Row="1" PlaceholderText="이름·날짜 검색"/>
-     <ListBox Name="HistoryList" Grid.Row="2" Margin="0,7" Background="Transparent" SelectionMode="Multiple"/>
-     <StackPanel Grid.Row="3"><Button Name="MoreHistoryButton" Content="이력 더 보기" HorizontalAlignment="Stretch"/><TextBox Name="NameEntry" PlaceholderText="이력 이름" MaxLength="100"/><WrapPanel><Button Name="RenameButton" Content="이름 저장"/><Button Name="DuplicateHistoryButton" Content="이력 복제"/><Button Name="DeleteHistoryButton" Content="선택 삭제"/></WrapPanel></StackPanel>
+     <StackPanel Margin="4,0,0,12" Spacing="4"><TextBlock Text="라이브러리" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="캡처 이력" Classes="caption"/></StackPanel>
+     <TextBox Name="SearchBox" Grid.Row="1" PlaceholderText="이름 또는 날짜 검색"/>
+     <ListBox Name="HistoryList" Grid.Row="2" Margin="0,10" Padding="0" Background="Transparent" SelectionMode="Multiple"/>
+     <StackPanel Grid.Row="3" Spacing="5">
+      <Button Name="MoreHistoryButton" Classes="quiet" Content="이력 더 보기" HorizontalAlignment="Stretch"/>
+      <Border Height="1" Background="{DynamicResource Mac.Border}" Margin="3,5"/>
+      <TextBlock Classes="caption" Text="선택한 이력" Margin="4,4,0,0"/>
+      <TextBox Name="NameEntry" PlaceholderText="이력 이름" MaxLength="100"/>
+      <WrapPanel><Button Name="RenameButton" Content="이름 저장"/><Button Name="DuplicateHistoryButton" Content="복제"/><Button Name="DeleteHistoryButton" Content="삭제"/></WrapPanel>
+     </StackPanel>
     </Grid>
    </Border>
    <GridSplitter Name="HistorySplitter" Grid.Column="1" ResizeDirection="Columns"/>
-   <Grid Grid.Column="2" Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}">
-    <ScrollViewer Name="ImageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Panel Name="SurfaceHost" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24"/></ScrollViewer>
-    <StackPanel Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10"><TextBlock Text="이미지를 열거나 캡처해 보세요" FontSize="22"/><TextBlock Text="상단에서 캡처하거나 왼쪽 이력을 선택해 다시 편집할 수 있습니다." TextWrapping="Wrap" MaxWidth="400"/><Button Name="EmptyCaptureButton" Content="영역 캡처" HorizontalAlignment="Left"/></StackPanel>
-    <Button Name="HistoryToggleButton" Content="이력 접기" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="4"/>
+   <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*">
+    <Border Name="ToolBar" Background="{DynamicResource Mac.Toolbar}" BorderBrush="{DynamicResource Mac.Border}" BorderThickness="0,0,0,1" Padding="12,8">
+     <ScrollViewer Name="ToolScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+      <StackPanel Orientation="Horizontal">
+       <WrapPanel Name="ToolButtons" VerticalAlignment="Center">
+        <Button Classes="toolbar tool" Content="선택" Tag="0"/><Button Classes="toolbar tool" Content="화살표" Tag="1"/><Button Classes="toolbar tool" Content="텍스트" Tag="2"/>
+        <Button Classes="toolbar tool" Content="사각형" Tag="3"/><Button Classes="toolbar tool" Content="모자이크" Tag="4"/><Button Classes="toolbar tool" Content="번호" Tag="5"/>
+        <Button Name="StickerButton" Classes="toolbar tool" Content="스티커"/><Button Classes="toolbar tool" Content="자르기" Tag="7"/>
+        <ComboBox Name="ToolBox" IsVisible="False" SelectedIndex="0"><ComboBoxItem Content="선택"/><ComboBoxItem Content="화살표"/><ComboBoxItem Content="텍스트"/><ComboBoxItem Content="사각형"/><ComboBoxItem Content="모자이크"/><ComboBoxItem Content="번호"/><ComboBoxItem Content="이미지 추가"/><ComboBoxItem Content="자르기"/></ComboBox>
+       </WrapPanel>
+       <Border Classes="toolbar-divider"/>
+       <Button Name="AddImageButton" Classes="toolbar icon" Content="이미지 추가"/>
+       <Button Name="UndoButton" Classes="toolbar icon" Content="실행 취소" ToolTip.Tip="실행 취소 · ⌘Z"/>
+       <Button Name="RedoButton" Classes="toolbar icon" Content="다시 실행" ToolTip.Tip="다시 실행 · ⇧⌘Z"/>
+       <Border Classes="toolbar-divider"/>
+       <Button Name="DuplicateButton" Classes="toolbar icon" Content="복제" ToolTip.Tip="선택 개체 복제 · ⌘D"/>
+       <Button Name="DeleteButton" Classes="toolbar icon" Content="삭제" ToolTip.Tip="선택 개체 삭제"/>
+       <Button Name="EditTextButton" Classes="toolbar icon" Content="내용 편집"/>
+      </StackPanel>
+     </ScrollViewer>
+    </Border>
+    <Border Name="PropertiesBorder" Grid.Row="1" Padding="12,8" Background="{DynamicResource Mac.Toolbar}" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Mac.Border}">
+     <ScrollViewer Name="PropertiesScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+      <WrapPanel Name="PropertiesPanel" VerticalAlignment="Center">
+       <WrapPanel Name="ColorControls" Classes="property"><TextBlock Text="색상" Classes="property-label"/><TextBox Name="ColorBox" Text="#E83F56" Width="96" PlaceholderText="#RRGGBB"/><Button Name="ColorPickerButton" Content="색상 선택…"/></WrapPanel>
+       <WrapPanel Name="ThicknessControls" Classes="property"><TextBlock Text="선 두께" Classes="property-label"/><NumericUpDown Name="ThicknessBox" Minimum="1" Maximum="1024" Value="3" FormatString="0"/></WrapPanel>
+       <WrapPanel Name="LineStyleControls" Classes="property"><TextBlock Text="선 모양" Classes="property-label"/><ComboBox Name="LineStyleBox" SelectedIndex="0"><ComboBoxItem Content="실선"/><ComboBoxItem Content="파선"/><ComboBoxItem Content="점선"/><ComboBoxItem Content="일점쇄선"/><ComboBoxItem Content="이점쇄선"/></ComboBox></WrapPanel>
+       <WrapPanel Name="FontControls" Classes="property"><TextBlock Text="글자 크기" Classes="property-label"/><NumericUpDown Name="FontBox" Minimum="1" Maximum="4096" Value="24" FormatString="0"/></WrapPanel>
+       <WrapPanel Name="TextControls" Classes="property"><TextBox Name="TextEntry" Text="텍스트" Width="180" PlaceholderText="텍스트 내용"/><Button Name="ApplyTextButton" Content="선택 텍스트 변경"/></WrapPanel>
+       <WrapPanel Name="MosaicControls" Classes="property"><TextBlock Text="블록 크기" Classes="property-label"/><Slider Name="MosaicSlider" Minimum="4" Maximum="64" Value="12" TickFrequency="1" IsSnapToTickEnabled="True" Width="140" VerticalAlignment="Center"/><TextBlock Name="MosaicValueText" Text="12 px" Classes="property-label"/></WrapPanel>
+       <WrapPanel Name="NumberControls" Classes="property"><ComboBox Name="NumberModeBox" SelectedIndex="0"><ComboBoxItem Content="1, 2, 3"/><ComboBoxItem Content="a, b, c"/><ComboBoxItem Content="A, B, C"/></ComboBox><TextBlock Text="다음 순번" Classes="property-label"/><TextBox Name="NextNumberBox" Text="1" Width="85"/><Button Name="NumberTextColorButton" Content="글자색: 흰색"/></WrapPanel>
+       <WrapPanel Name="KeycapControls" Classes="property"><Button Name="ApplyKeycapButton" Content="키 라벨 변경"/></WrapPanel>
+      </WrapPanel>
+     </ScrollViewer>
+    </Border>
+    <Grid Grid.Row="2" Background="{DynamicResource Mac.Canvas}">
+     <ScrollViewer Name="ImageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"><Panel Name="SurfaceHost" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="32"/></ScrollViewer>
+     <StackPanel Name="EmptyPanel" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Margin="28">
+      <Border Background="{DynamicResource Mac.Card}" CornerRadius="18" Width="72" Height="72" HorizontalAlignment="Center" Margin="0,0,0,6"><PathIcon Data="M3,4 H21 V20 H3 Z M4,18 L9,12 L13,16 L16,13 L20,18 Z M14,7 H18 V10 H14 Z" Width="30" Height="30" Foreground="{DynamicResource Theme.Accent}"/></Border>
+      <TextBlock Text="캡처하고, 생각을 더하세요" FontSize="23" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+      <TextBlock Text="새 화면을 캡처하거나 이미지를 열어 편집을 시작하세요." Classes="caption" TextWrapping="Wrap" TextAlignment="Center" MaxWidth="360"/>
+      <Button Name="EmptyCaptureButton" Classes="primary" Content="영역 캡처" HorizontalAlignment="Center" Margin="0,8,0,0" Padding="18,9"/>
+      <TextBlock Text="이미지 열기 ⌘O  ·  붙여넣기 ⌘V" Classes="caption" HorizontalAlignment="Center" FontSize="11"/>
+     </StackPanel>
+    </Grid>
    </Grid>
   </Grid>
-  <Border Grid.Row="3" Padding="12,5" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}"><Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto"><TextBlock Name="StatusText" Text="준비됨" VerticalAlignment="Center" TextWrapping="Wrap"/><Button Name="ImageSizeButton" Grid.Column="1" Content="이미지 없음"/><Button Name="ZoomOutButton" Grid.Column="2" Content="−"/><TextBlock Name="ZoomText" Grid.Column="3" Text="100%" VerticalAlignment="Center" Margin="8,0"/><Button Name="ZoomInButton" Grid.Column="4" Content="+"/><Button Name="FitButton" Grid.Column="5" Content="화면에 맞춤"/></Grid></Border>
+  <Border Grid.Row="2" Padding="14,6" Background="{DynamicResource Mac.Toolbar}" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Mac.Border}">
+   <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto">
+    <TextBlock Name="StatusText" Text="준비됨" Classes="caption" VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+     <ToolTip.Tip><TextBlock Text="{Binding Text, ElementName=StatusText}" TextWrapping="Wrap" MaxWidth="480"/></ToolTip.Tip>
+    </TextBlock>
+    <Button Name="ImageSizeButton" Classes="quiet" Grid.Column="1" Content="이미지 없음"/>
+    <Button Name="ZoomOutButton" Classes="quiet" Grid.Column="2" Content="−" ToolTip.Tip="축소"/>
+    <TextBlock Name="ZoomText" Grid.Column="3" Text="100%" FontSize="12" VerticalAlignment="Center" Margin="8,0"/>
+    <Button Name="ZoomInButton" Classes="quiet" Grid.Column="4" Content="+" ToolTip.Tip="확대"/>
+    <Button Name="FitButton" Classes="quiet" Grid.Column="5" Content="화면에 맞춤"/>
+   </Grid>
+  </Border>
  </Grid>
 </Window>

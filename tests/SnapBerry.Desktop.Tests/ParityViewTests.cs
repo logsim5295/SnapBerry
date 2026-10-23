@@ -38,8 +38,8 @@ public class ParityViewTests
             window.FindControl<ComboBox>("ToolBox")!.SelectedIndex=4;editor.Commit(new(){Kind=AnnotationKind.Mosaic,Width=30,Height=20});
             window.FindControl<Slider>("MosaicSlider")!.Value=32;Assert.Equal(32,editor.Selected!.MosaicBlockSize);
             editor.History.Undo();Assert.Equal(12,editor.Selected!.MosaicBlockSize);
-            window.SetBusy(true);Assert.False(window.FindControl<TabControl>("RibbonTabs")!.IsEnabled);
-            window.SetBusy(false);Assert.True(window.FindControl<TabControl>("RibbonTabs")!.IsEnabled);
+            window.SetBusy(true);Assert.False(window.FindControl<Border>("CommandBar")!.IsEnabled);
+            window.SetBusy(false);Assert.True(window.FindControl<Border>("CommandBar")!.IsEnabled);
         }
         finally{window.Dispose();window.Close();if(Directory.Exists(path))Directory.Delete(path,true);}
     }
