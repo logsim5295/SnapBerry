@@ -284,7 +284,8 @@ public sealed partial class MainWindow
         var grid=Control<Grid>("WorkspaceGrid");grid.ColumnDefinitions[0].MinWidth=visible?170:0;
         grid.ColumnDefinitions[0].Width=new(visible?historyWidth:0);grid.ColumnDefinitions[1].Width=new(visible?5:0);
         Control<Border>("HistoryPanel").IsVisible=Control<GridSplitter>("HistorySplitter").IsVisible=visible;
-        Control<Button>("HistoryToggleButton").Content=visible?"이력 숨기기":"이력 보기";
+        var toggle=Control<Button>("HistoryToggleButton");var label=visible?"이력 숨기기":"이력 보기";
+        DesktopIcons.Set(toggle,"Sidebar",label,showLabel:false);ToolTip.SetTip(toggle,label);
     }
     private void RememberHistoryWidth()
     {

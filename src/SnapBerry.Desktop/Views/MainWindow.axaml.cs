@@ -33,7 +33,7 @@ public sealed partial class MainWindow : Window,IDisposable
     public MainWindow():this(new DesktopEditor(),new MacCaptureService(),DesktopPreferences.DataDirectory,null,CreateGlobalHotkeys()){}
     public MainWindow(DesktopEditor editor,ICaptureService captureService,string dataDirectory,IEditorClipboard? clipboard=null,GlobalHotkeyService? hotkeys=null,ILoginStartupService? loginStartup=null)
     {
-        AvaloniaXamlLoader.Load(this);this.loginStartup=loginStartup??(OperatingSystem.IsMacOS()?new MacLoginStartupService():null);this.editor=editor;this.dataDirectory=dataDirectory;store=new(Path.Combine(dataDirectory,"Library"));capture=new(captureService);
+        AvaloniaXamlLoader.Load(this);DesktopIcons.Apply(this);this.loginStartup=loginStartup??(OperatingSystem.IsMacOS()?new MacLoginStartupService():null);this.editor=editor;this.dataDirectory=dataDirectory;store=new(Path.Combine(dataDirectory,"Library"));capture=new(captureService);
         clipboardCommands=new(clipboard??new AvaloniaEditorClipboard(()=>this.Clipboard));this.hotkeys=hotkeys;preferences=DesktopPreferences.Load(dataDirectory);if(hotkeys is not null)hotkeys.Pressed+=OnGlobalCapture;
         surface=new(editor);surface.SelectionChanged+=RefreshSelection;surface.EditFailed+=error=>Status("편집 실패: "+error.Message);this.FindControl<Panel>("SurfaceHost")!.Children.Add(surface);
         autosave=new(store.SaveAsync);
@@ -63,7 +63,7 @@ public sealed partial class MainWindow : Window,IDisposable
         try{await action();}catch(OperationCanceledException){Status("취소됨");}catch(Exception error){Status("작업 실패: "+error.Message);}finally{SetBusy(false);}
     }
     public void SetBusy(bool value)
-    {busy=value;Control<TabControl>("RibbonTabs").IsEnabled=!value;Control<Button>("HistoryToggleButton").IsEnabled=!value;Control<WrapPanel>("CommandPanel").IsEnabled=!value;Control<WrapPanel>("PropertiesPanel").IsEnabled=!value;Control<Border>("HistoryPanel").IsEnabled=!value;surface.IsEnabled=!value;if(stickerPicker is not null)stickerPicker.IsEnabled=!value;UpdateCommands();}
+    {busy=value;Control<Border>("CommandBar").IsEnabled=!value;Control<Border>("ToolBar").IsEnabled=!value;Control<StackPanel>("ViewCommands").IsEnabled=!value;Control<Button>("EmptyCaptureButton").IsEnabled=!value;Control<WrapPanel>("PropertiesPanel").IsEnabled=!value;Control<Border>("HistoryPanel").IsEnabled=!value;surface.IsEnabled=!value;if(stickerPicker is not null)stickerPicker.IsEnabled=!value;UpdateCommands();}
     public void ApplyTheme(bool dark){RequestedThemeVariant=dark?ThemeVariant.Dark:ThemeVariant.Light;if(stickerPicker is not null)stickerPicker.RequestedThemeVariant=RequestedThemeVariant;}
     private void Status(string value)=>Control<TextBlock>("StatusText").Text=value;
     private void EditorChanged(object? sender,EventArgs args)

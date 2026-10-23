@@ -175,7 +175,7 @@ public class PurpleThemeTests
                 State(tool,":pressed",false);State(tool,":pointerover",false);
             }
             var splitter=window.FindControl<GridSplitter>("HistorySplitter")!;State(splitter,":pointerover");Equal(Accent(dark),splitter.Background);
-            window.FindControl<TabControl>("RibbonTabs")!.SelectedIndex=1;
+            window.FindControl<Button>("ViewOptionsButton")!.Flyout!.ShowAt(window.FindControl<Button>("ViewOptionsButton")!);
             window.ApplyTheme(!dark);Dispatcher.UIThread.RunJobs();Equal(Accent(!dark),splitter.Background);
             Assert.All(DesktopMenu.Create(window).Items,x=>Assert.True(x is NativeMenuItem or NativeMenuItemSeparator));
             Assert.All(new[]{"SystemAccentColor","SystemAccentColorLight1","SystemAccentColorDark1"},key=>
