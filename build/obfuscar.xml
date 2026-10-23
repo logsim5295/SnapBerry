@@ -1,0 +1,22 @@
+<Obfuscator>
+  <!-- 실제 경로는 게시 단계에서 생성하며, 원래 bin/Release DLL은 수정하지 않는다. -->
+  <Var name="InPath" value="input" />
+  <Var name="OutPath" value="output" />
+  <AssemblySearchPath path="references" />
+  <!-- WPF 바인딩, JSON 프로퍼티/생성자와 외부 호출 계약을 보존한다. -->
+  <Var name="KeepPublicApi" value="true" />
+  <Var name="HidePrivateApi" value="true" />
+  <Var name="HideStrings" value="true" />
+  <Var name="AnalyzeXaml" value="true" />
+  <Var name="RegenerateDebugInfo" value="false" />
+  <Module file="SnapBerry.dll">
+    <!-- BAML의 x:Class, x:Name, 이벤트 처리기 이름은 그대로 유지한다. -->
+    <SkipType name="SnapBerry.App.App" skipMethods="true" skipFields="true" skipProperties="true" skipEvents="true" />
+    <SkipType name="SnapBerry.App.Editor.EditorWindow" skipMethods="true" skipFields="true" skipProperties="true" skipEvents="true" />
+    <!-- 네이티브 진입점과 마샬링 형식은 이름 변경에서 제외한다. -->
+    <SkipNamespace name="SnapBerry.App.Interop*" />
+    <SkipType name="SnapBerry.App.Settings.*Hook*" skipMethods="true" skipFields="true" skipProperties="true" skipEvents="true" />
+    <SkipType name="SnapBerry.App.Settings.HotkeyInput" skipMethods="true" skipFields="true" skipProperties="true" skipEvents="true" />
+  </Module>
+  <Module file="SnapBerry.Core.dll" />
+</Obfuscator>

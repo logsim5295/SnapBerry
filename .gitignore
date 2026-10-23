@@ -1,0 +1,8 @@
+bin/
+.vs/
+obj/
+artifacts/
+.superpowers/
+TestResults/
+dist/macos/
+__pycache__/

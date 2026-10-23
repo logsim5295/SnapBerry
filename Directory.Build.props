@@ -1,0 +1,2 @@
+<Project><PropertyGroup><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><LangVersion>latest</LangVersion><RestorePackagesWithLockFile>true</RestorePackagesWithLockFile><RuntimeIdentifiers>win-x64</RuntimeIdentifiers><NuGetAudit>false</NuGetAudit></PropertyGroup><ItemGroup><Using Include="System.IO"/></ItemGroup></Project>
+<!-- 모든 프로젝트의 null 검사·언어 버전·잠금 파일과 공통 using 설정을 모은다. -->

@@ -1,0 +1,157 @@
+name: macOS verification
+
+on:
+  push:
+    paths:
+      - '.github/workflows/macos.yml'
+      - 'build/**'
+      - 'global.json'
+      - 'Directory.Build.*'
+      - 'NuGet.Config'
+      - 'src/SnapBerry.Core/**'
+      - 'src/SnapBerry.Desktop/**'
+      - 'src/SnapBerry.App/Library/**'
+      - 'src/SnapBerry.App/Stickers/StickerDefinitions.cs'
+      - 'src/SnapBerry.App/Assets/**'
+      - 'tests/SnapBerry.Core.Tests/**'
+      - 'tests/SnapBerry.Desktop.Tests/**'
+      - 'docs/macos.md'
+  pull_request:
+    paths:
+      - '.github/workflows/macos.yml'
+      - 'build/**'
+      - 'global.json'
+      - 'Directory.Build.*'
+      - 'NuGet.Config'
+      - 'src/SnapBerry.Core/**'
+      - 'src/SnapBerry.Desktop/**'
+      - 'src/SnapBerry.App/Library/**'
+      - 'src/SnapBerry.App/Stickers/StickerDefinitions.cs'
+      - 'src/SnapBerry.App/Assets/**'
+      - 'tests/SnapBerry.Core.Tests/**'
+      - 'tests/SnapBerry.Desktop.Tests/**'
+      - 'docs/macos.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
+jobs:
+  verify:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            rid: osx-arm64
+          - runner: macos-15-intel
+            arch: x64
+            rid: osx-x64
+    defaults:
+      run:
+        shell: bash
+    env:
+      SNAPBERRY_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/macos-ci/${{ matrix.rid }}/screenshots
+    steps:
+      - name: Check out source without the Windows LFS executable
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          lfs: false
+          persist-credentials: false
+
+      - name: Install the repository .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+
+      - name: Build the macOS desktop project
+        run: dotnet build src/SnapBerry.Desktop -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false
+
+      - name: Test the package verifier
+        run: python3 -m unittest discover -s build/tests -v
+
+      - name: Test shared document logic
+        run: >-
+          dotnet test tests/SnapBerry.Core.Tests -c Release
+          --disable-build-servers -m:1 -p:UseSharedCompilation=false
+          --logger "trx;LogFileName=core.trx"
+          --results-directory "artifacts/macos-ci/${{ matrix.rid }}/tests/core"
+
+      - name: Test the desktop with in-memory windows and fake OS services
+        run: >-
+          dotnet test tests/SnapBerry.Desktop.Tests -c Release
+          --disable-build-servers -m:1 -p:UseSharedCompilation=false
+          --logger "trx;LogFileName=desktop.trx"
+          --results-directory "artifacts/macos-ci/${{ matrix.rid }}/tests/desktop"
+
+      - name: Publish the native architecture package
+        shell: pwsh
+        run: ./build/Publish-MacOS.ps1 -RuntimeIdentifier '${{ matrix.rid }}'
+
+      - name: Verify ZIP structure and load native libraries without starting the app
+        run: |
+          mkdir -p "artifacts/macos-ci/${{ matrix.rid }}"
+          python3 build/verify_macos.py \
+            "dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip" \
+            --arch '${{ matrix.arch }}' --native 2>&1 \
+            | tee "artifacts/macos-ci/${{ matrix.rid }}/package-verification.txt"
+
+      - name: Prepare a terminal-free trial DMG and inspect its mounted contents
+        run: |
+          python3 build/package_macos_dmg.py \
+            "dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip" \
+            --arch '${{ matrix.arch }}' \
+            --output "dist/macos/SnapBerry-macos-${{ matrix.arch }}.dmg" 2>&1 \
+            | tee "artifacts/macos-ci/${{ matrix.rid }}/dmg-verification.txt"
+
+      - name: Test first-use macOS permission approval and real native features
+        run: |
+          smoke_dir="artifacts/macos-ci/${{ matrix.rid }}/install-smoke"
+          mkdir -p "$smoke_dir"
+          xcrun swiftc -swift-version 5 build/macos_launch_probe.swift -o "$smoke_dir/launch-probe"
+          xcrun swiftc -swift-version 5 build/macos_feature_probe.swift -o "$smoke_dir/feature-probe"
+          xcrun swiftc -swift-version 5 build/macos_consent_probe.swift -o "$smoke_dir/consent-probe"
+          python3 build/smoke_macos_install.py \
+            "dist/macos/SnapBerry-macos-${{ matrix.arch }}.dmg" \
+            --arch '${{ matrix.arch }}' --probe "$smoke_dir/launch-probe" \
+            --output "$smoke_dir" --features "$smoke_dir/feature-probe" \
+            --consent "$smoke_dir/consent-probe" 2>&1 | tee "$smoke_dir/install-verification.txt"
+
+      - name: Keep the terminal-free trial installer
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: SnapBerry-macos-${{ matrix.arch }}-DMG
+          path: dist/macos/SnapBerry-macos-${{ matrix.arch }}.dmg
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Keep test results and rendered frames even on failure
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: macos-results-${{ matrix.rid }}
+          path: artifacts/macos-ci/${{ matrix.rid }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Keep the verified unsigned package
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: SnapBerry-macos-${{ matrix.arch }}-unsigned
+          path: dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

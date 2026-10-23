@@ -1,0 +1,2 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>
+<!-- UI 의존성 없이 문서·좌표·도형 배치·실행 취소 규칙을 제공하는 공통 라이브러리다. -->

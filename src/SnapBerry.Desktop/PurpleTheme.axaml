@@ -1,0 +1,24 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="SnapBerry.Desktop.PurpleTheme">
+ <FluentTheme>
+  <FluentTheme.Palettes>
+   <ColorPaletteResources x:Key="Light" Accent="#923C83"/>
+   <ColorPaletteResources x:Key="Dark" Accent="#C880BA"/>
+  </FluentTheme.Palettes>
+ </FluentTheme>
+ <Style Selector="Button.active:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
+  <Setter Property="Background" Value="{DynamicResource Theme.Selected}"/>
+  <Setter Property="BorderBrush" Value="{DynamicResource Theme.Accent}"/>
+ </Style>
+ <Style Selector="TextBox">
+  <Setter Property="CaretBrush" Value="{DynamicResource Theme.Accent}"/>
+ </Style>
+ <Style Selector="ButtonSpinner:pointerover:not(:disabled):not(:error), ButtonSpinner:focus-within:not(:disabled):not(:error)">
+  <Setter Property="BorderBrush" Value="{DynamicResource Theme.Accent}"/>
+ </Style>
+ <Style Selector="GridSplitter:pointerover, GridSplitter:focus-visible">
+  <Setter Property="Background" Value="{DynamicResource Theme.Accent}"/>
+ </Style>
+ <Style Selector="GridSplitter:pressed">
+  <Setter Property="Background" Value="{DynamicResource Theme.AccentPressed}"/>
+ </Style>
+</Styles>

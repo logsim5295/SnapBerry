@@ -1,0 +1,16 @@
+<Project>
+  <Target Name="ObfuscatePortableAssemblies"
+          BeforeTargets="GenerateSingleFileBundle"
+          DependsOnTargets="PrepareForBundle"
+          Condition="'$(PublishProfile)' == 'Portable' and '$(PublishSingleFile)' == 'true'">
+    <PropertyGroup>
+      <_ObfuscationDirectory>$([System.IO.Path]::GetFullPath('$(IntermediateOutputPath)portable-obfuscation'))</_ObfuscationDirectory>
+    </PropertyGroup>
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)/../../build/Obfuscate-Portable.ps1&quot; -InputDirectory &quot;$(TargetDir).&quot; -WorkDirectory &quot;$(_ObfuscationDirectory)&quot;" />
+    <ItemGroup>
+      <_OriginalAppBundle Include="@(FilesToBundle)" Condition="'%(Filename)%(Extension)' == 'SnapBerry.dll' or '%(Filename)%(Extension)' == 'SnapBerry.Core.dll'" />
+      <FilesToBundle Remove="@(_OriginalAppBundle)" />
+      <FilesToBundle Include="@(_OriginalAppBundle->'$(_ObfuscationDirectory)/output/%(Filename)%(Extension)')" />
+    </ItemGroup>
+  </Target>
+</Project>
