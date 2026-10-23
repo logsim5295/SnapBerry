@@ -34,6 +34,11 @@ on:
       - 'tests/SnapBerry.Desktop.Tests/**'
       - 'docs/macos.md'
   workflow_dispatch:
+    inputs:
+      ui_only:
+        description: '실제 macOS 창·접근성·라이트/다크 PNG만 검증 (설치 파일 업로드 없음)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,6 +53,7 @@ env:
 
 jobs:
   verify:
+    if: ${{ github.event_name != 'workflow_dispatch' || !inputs.ui_only }}
     name: macOS ${{ matrix.arch }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 25
@@ -130,15 +136,6 @@ jobs:
             --output "$smoke_dir" --features "$smoke_dir/feature-probe" \
             --consent "$smoke_dir/consent-probe" 2>&1 | tee "$smoke_dir/install-verification.txt"
 
-      - name: Keep the terminal-free trial installer
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: SnapBerry-macos-${{ matrix.arch }}-DMG
-          path: dist/macos/SnapBerry-macos-${{ matrix.arch }}.dmg
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 14
-
       - name: Keep test results and rendered frames even on failure
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
@@ -148,11 +145,53 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-      - name: Keep the verified unsigned package
+  native-ui:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.ui_only }}
+    name: Native UI ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+            rid: osx-arm64
+          - runner: macos-15-intel
+            arch: x64
+            rid: osx-x64
+    defaults:
+      run:
+        shell: bash
+    env:
+      UI_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Test the native UI evidence verifier without opening windows
+        run: python3 -m unittest discover -s build/tests -v
+      - name: Build and test the Desktop UI without OS windows
+        run: |
+          dotnet build src/SnapBerry.Desktop -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false
+          dotnet test tests/SnapBerry.Desktop.Tests -c Release --disable-build-servers -m:1 -p:UseSharedCompilation=false --logger "trx;LogFileName=desktop.trx" --results-directory "artifacts/native-ui/${{ matrix.rid }}/tests"
+      - name: Publish the runner's native architecture locally
+        shell: pwsh
+        run: ./build/Publish-MacOS.ps1 -RuntimeIdentifier '${{ matrix.rid }}'
+      - name: Open real macOS windows and verify light and dark screenshots
+        run: |
+          xcrun swiftc -swift-version 5 build/macos_ui_probe.swift -o "$RUNNER_TEMP/snapberry-ui-probe"
+          python3 build/verify_macos_ui.py "dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip" \
+            --arch '${{ matrix.arch }}' --probe "$RUNNER_TEMP/snapberry-ui-probe" \
+            --output "artifacts/native-ui/${{ matrix.rid }}" 2>&1 | tee "artifacts/native-ui/${{ matrix.rid }}/native-ui.log"
+      - name: Keep screenshots, accessibility evidence and test reports
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: SnapBerry-macos-${{ matrix.arch }}-unsigned
-          path: dist/macos/SnapBerry-macos-${{ matrix.arch }}-unsigned.zip
+          name: macos-native-ui-${{ matrix.rid }}
+          path: artifacts/native-ui/${{ matrix.rid }}/
           if-no-files-found: error
-          compression-level: 0
           retention-days: 14

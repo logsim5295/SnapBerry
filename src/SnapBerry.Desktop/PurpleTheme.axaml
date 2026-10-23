@@ -5,6 +5,64 @@
    <ColorPaletteResources x:Key="Dark" Accent="#C880BA"/>
   </FluentTheme.Palettes>
  </FluentTheme>
+ <Style Selector="Window">
+  <Setter Property="FontFamily" Value="Helvetica Neue, Segoe UI, sans-serif"/>
+  <Setter Property="FontSize" Value="13"/>
+  <Setter Property="Background" Value="{DynamicResource Mac.Window}"/>
+ </Style>
+ <Style Selector="Button">
+  <Setter Property="CornerRadius" Value="7"/>
+  <Setter Property="MinHeight" Value="28"/>
+  <Setter Property="Padding" Value="11,5"/>
+  <Setter Property="FontSize" Value="12"/>
+ </Style>
+ <Style Selector="Button.primary">
+  <Setter Property="Background" Value="{DynamicResource Theme.Accent}"/>
+  <Setter Property="Foreground" Value="{DynamicResource Mac.OnAccent}"/>
+  <Setter Property="BorderBrush" Value="Transparent"/>
+ </Style>
+ <Style Selector="Button.quiet">
+  <Setter Property="Background" Value="Transparent"/>
+  <Setter Property="BorderBrush" Value="Transparent"/>
+ </Style>
+ <Style Selector="Button.tool">
+  <Setter Property="Background" Value="Transparent"/>
+  <Setter Property="BorderBrush" Value="Transparent"/>
+ </Style>
+ <Style Selector="TextBox, ComboBox, NumericUpDown">
+  <Setter Property="CornerRadius" Value="6"/>
+  <Setter Property="FontSize" Value="13"/>
+ </Style>
+ <Style Selector="TextBlock.caption">
+  <Setter Property="Foreground" Value="{DynamicResource Mac.Secondary}"/>
+  <Setter Property="FontSize" Value="12"/>
+ </Style>
+ <Style Selector="TextBlock.section-title">
+  <Setter Property="FontWeight" Value="SemiBold"/>
+  <Setter Property="FontSize" Value="14"/>
+ </Style>
+ <Style Selector="TextBlock.property-label">
+  <Setter Property="VerticalAlignment" Value="Center"/>
+  <Setter Property="Foreground" Value="{DynamicResource Mac.Secondary}"/>
+  <Setter Property="Margin" Value="4,0,6,0"/>
+  <Setter Property="FontSize" Value="12"/>
+ </Style>
+ <Style Selector="Border.toolbar-divider">
+  <Setter Property="Width" Value="1"/>
+  <Setter Property="Height" Value="20"/>
+  <Setter Property="Margin" Value="10,0"/>
+  <Setter Property="VerticalAlignment" Value="Center"/>
+  <Setter Property="Background" Value="{DynamicResource Mac.Border}"/>
+ </Style>
+ <Style Selector="ListBoxItem">
+  <Setter Property="CornerRadius" Value="8"/>
+  <Setter Property="Padding" Value="6,2"/>
+  <Setter Property="Margin" Value="0,2"/>
+ </Style>
+ <Style Selector="TabItem">
+  <Setter Property="FontSize" Value="13"/>
+  <Setter Property="Padding" Value="10,8"/>
+ </Style>
  <Style Selector="Button.active:not(:disabled) /template/ ContentPresenter#PART_ContentPresenter">
   <Setter Property="Background" Value="{DynamicResource Theme.Selected}"/>
   <Setter Property="BorderBrush" Value="{DynamicResource Theme.Accent}"/>
@@ -14,6 +72,9 @@
  </Style>
  <Style Selector="ButtonSpinner:pointerover:not(:disabled):not(:error), ButtonSpinner:focus-within:not(:disabled):not(:error)">
   <Setter Property="BorderBrush" Value="{DynamicResource Theme.Accent}"/>
+ </Style>
+ <Style Selector="GridSplitter">
+  <Setter Property="Background" Value="{DynamicResource Mac.Border}"/>
  </Style>
  <Style Selector="GridSplitter:pointerover, GridSplitter:focus-visible">
   <Setter Property="Background" Value="{DynamicResource Theme.Accent}"/>
