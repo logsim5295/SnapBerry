@@ -23,8 +23,8 @@ public class AboutDesignTests
             var details=(Expander)w.FindName("AboutDetails");Assert.False(details.IsExpanded);
             Assert.DoesNotContain("github",w.DiagnosticText,StringComparison.OrdinalIgnoreCase);
             var repository=Assert.IsType<Hyperlink>(w.FindName("GitHubLink"));
-            Assert.Equal("https://github.com/simlog1234/SnapBerry",repository.NavigateUri.AbsoluteUri);
-            Assert.Equal("simlog1234/SnapBerry",Assert.IsType<Run>(repository.Inlines.Single()).Text);
+            Assert.Equal("https://github.com/logsim5295/SnapBerry",repository.NavigateUri.AbsoluteUri);
+            Assert.Equal("logsim5295/SnapBerry",Assert.IsType<Run>(repository.Inlines.Single()).Text);
             details.IsExpanded=true;Assert.True(details.IsExpanded);Assert.False(w.IsVisible);
             chrome.Measure(new Size(w.Width,double.PositiveInfinity));chrome.Arrange(new Rect(new Size(w.Width,chrome.DesiredSize.Height)));chrome.UpdateLayout();
             var artifacts=Environment.GetEnvironmentVariable("SNAPBERRY_TEST_ARTIFACTS");
@@ -49,7 +49,7 @@ public class AboutDesignTests
             var repository=Assert.IsType<Hyperlink>(w.FindName("GitHubLink"));
             var navigation=new RequestNavigateEventArgs(repository.NavigateUri,null){RoutedEvent=Hyperlink.RequestNavigateEvent};
             repository.RaiseEvent(navigation);
-            Assert.Equal("https://github.com/simlog1234/SnapBerry",opened);Assert.True(navigation.Handled);
+            Assert.Equal("https://github.com/logsim5295/SnapBerry",opened);Assert.True(navigation.Handled);
             Assert.Equal("GitHub 저장소 열림",((TextBlock)w.FindName("AboutActionStatus")).Text);Assert.False(w.IsVisible);
         }
         finally{w.Close();}
@@ -65,7 +65,7 @@ public class AboutDesignTests
             Assert.DoesNotContain(AppDataPaths.RootDirectory,copied,StringComparison.OrdinalIgnoreCase);
             ((Button)w.FindName("OpenStorageFolderButton")).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));Assert.Equal(AppDataPaths.RootDirectory,opened);
             var mail=(Hyperlink)w.FindName("AboutAuthorLink");mail.RaiseEvent(new RequestNavigateEventArgs(mail.NavigateUri,null){RoutedEvent=Hyperlink.RequestNavigateEvent});
-            Assert.Equal("mailto:s921119@gmail.com",opened);Assert.False(w.IsVisible);
+            Assert.Equal("mailto:logsim1234@gmail.com",opened);Assert.False(w.IsVisible);
         }
         finally{w.Close();}
     });
