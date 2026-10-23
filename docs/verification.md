@@ -1,5 +1,7 @@
 # QuickCapture Verification
 
+이 문서의 `simlog1234/SnapBerry/actions/runs/...` 링크는 저장소 이전 전에 실행한 검증의 원래 주소다. 새 저장소를 별도로 생성했으므로 과거 실행 ID를 새 저장소 주소로 바꿔도 해당 기록으로 연결되지 않는다. 현재 검증은 [logsim5295/SnapBerry Actions](https://github.com/logsim5295/SnapBerry/actions/workflows/macos.yml)에서 확인하고, 다운로드에는 [macOS 안내](macos.md)를 따른다.
+
 ## Windows 캡처 시 편집기 잔상 방지 (2026-10-21)
 
 - 캡처 전의 `Hide()` + 고정 120ms 대기를 제거했다. 작업 중 상태가 스티커 선택창을 숨기기 전부터 편집기와 소유 창의 DWM 전환 효과를 일시 억제하고, 창 숨김 → WPF 렌더 큐 대기 → `DwmFlush` → 숨김 상태 확인 → 화면 읽기 순서로 진행한다. 준비 실패 시 이미지를 읽지 않으며 성공·취소·오류 뒤에는 전환 효과 억제를 해제한다.

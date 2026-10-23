@@ -4,14 +4,16 @@ Windows 버전과 함께 배포하는 별도 Avalonia 앱이다. macOS 14 이상
 
 ## 패키지 선택
 
-- Apple Silicon: [SnapBerry-macos-arm64.dmg](https://github.com/simlog1234/SnapBerry/releases/download/v1.1.0/SnapBerry-macos-arm64.dmg)
-- Intel: [SnapBerry-macos-x64.dmg](https://github.com/simlog1234/SnapBerry/releases/download/v1.1.0/SnapBerry-macos-x64.dmg)
+- Apple Silicon: [SnapBerry-macos-arm64.dmg](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-arm64.dmg)
+- Intel: [SnapBerry-macos-x64.dmg](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-x64.dmg)
+
+새 저장소는 [logsim5295/SnapBerry](https://github.com/logsim5295/SnapBerry)다. 위 [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest)의 DMG는 GitHub 로그인 없이 받을 수 있으며 Actions Artifacts의 14일 보관 기한이 적용되지 않는다.
 
 맥 터미널에서 `uname -m` 결과가 `arm64`이면 Apple Silicon, `x86_64`이면 Intel이다. macOS의 Rosetta 터미널은 x86_64를 표시할 수 있으므로 Apple 메뉴 → 이 Mac에 관하여의 칩·프로세서 표시가 가장 정확하다.
 
 ## 터미널 없이 설치하기
 
-1. [GitHub Releases의 v1.1.0](https://github.com/simlog1234/SnapBerry/releases/tag/v1.1.0) 또는 위의 링크에서 맥 종류에 맞는 DMG를 받는다. Apple 메뉴 → 이 Mac에 관하여에서 칩이 Apple M 시리즈이면 Apple Silicon, 프로세서가 Intel이면 Intel 파일을 선택한다. `SHA256SUMS-macos.txt`에서 맥 설치 파일의 SHA-256을 확인할 수 있다.
+1. [최신 릴리스](https://github.com/logsim5295/SnapBerry/releases/latest) 또는 위의 링크에서 맥 종류에 맞는 DMG를 받는다. Apple 메뉴 → 이 Mac에 관하여에서 칩이 Apple M 시리즈이면 Apple Silicon, 프로세서가 Intel이면 Intel 파일을 선택한다. 릴리스에 첨부된 `SHA256SUMS.txt`에서 설치 파일의 SHA-256을 확인할 수 있다. GitHub 로그인이나 Actions Artifact ZIP 다운로드는 필요하지 않다.
 2. DMG를 더블클릭한다. 안에 있는 SnapBerry 아이콘을 Applications(응용 프로그램) 폴더로 끌어 놓는다.
 3. Finder의 응용 프로그램 폴더에서 SnapBerry를 더블클릭한다. 설치 디스크는 추출해도 된다. 별도 .NET 설치나 터미널 명령은 필요하지 않다.
 4. 개발자를 확인할 수 없다는 이유로 차단되면, 신뢰하는 배포 파일인지 확인한 뒤 시스템 설정 → 개인정보 보호 및 보안에서 SnapBerry의 ‘그래도 열기’를 선택한다. 자세한 절차는 [Apple 안내](https://support.apple.com/ko-kr/102445)를 따른다.
