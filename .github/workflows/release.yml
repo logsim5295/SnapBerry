@@ -222,6 +222,7 @@ jobs:
             gh release create "$TAG" --verify-tag --draft --title "SnapBerry $TAG" --notes-file release-notes.md
           fi
           gh release upload "$TAG" artifacts/release/files/* --clobber
-          gh api "repos/$GH_REPO/releases/tags/$TAG" > release-metadata.json
+          # The tag endpoint only resolves published releases; select the draft from the release list.
+          gh api --paginate "repos/$GH_REPO/releases?per_page=100" --jq '.[] | select(.tag_name == env.TAG)' > release-metadata.json
           python3 build/release.py verify-upload --version "$VERSION" --directory artifacts/release/files --metadata release-metadata.json
           gh release edit "$TAG" --draft=false --latest
