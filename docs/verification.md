@@ -2,6 +2,15 @@
 
 이 문서의 `simlog1234/SnapBerry/actions/runs/...` 링크는 저장소 이전 전에 실행한 검증의 원래 주소다. 새 저장소를 별도로 생성했으므로 과거 실행 ID를 새 저장소 주소로 바꿔도 해당 기록으로 연결되지 않는다. 현재 검증은 [logsim5295/SnapBerry Actions](https://github.com/logsim5295/SnapBerry/actions/workflows/macos.yml)에서 확인하고, 다운로드에는 [macOS 안내](macos.md)를 따른다.
 
+## 버전 태그 자동 릴리스와 수동 CI 검증 (2026-10-23)
+
+- 설정 커밋 `5769420`을 main에 반영하고 [Release 수동 실행 39903336346](https://github.com/logsim5295/SnapBerry/actions/runs/39903336346)에 `v1.2.3`을 입력해 전체 성공을 확인했다. `validate`, Windows, macOS arm64·x64, `assemble` 작업이 모두 통과했다.
+- Windows에서는 일반 Release 빌드, Core·Desktop 헤드리스 테스트, Portable 난독화 단일 EXE 게시·번들 검증·버전 검사·ZIP 생성을 통과했다. macOS 두 CPU에서는 빌드·헤드리스 테스트·네이티브 라이브러리 로딩과 DMG 생성·서명·무결성·읽기 전용 마운트 검사를 통과했다. macOS 패키지 검사 로그에서도 버전 `1.2.3`을 확인했다.
+- EXE·Windows ZIP·DMG 두 개·안내 문서 세 개의 집합과 ZIP 내용을 검사하고 `SHA256SUMS.txt`를 생성했다. 배포 파일 8개는 `release-files` Artifact에 보관했다(365071583 bytes, 보관 기간 14일).
+- 로컬 Python 테스트 37개 중 36개 통과·Unix 심볼릭 링크 검사 1개 건너뜀, Core 51개·Desktop 헤드리스 135개 통과를 확인했다. 일반 Release 빌드는 경고·오류 0개이고 actionlint와 독립 코드 검토에서 수정 사항이 없었다.
+- 수동 실행 조건에 따라 `publish` 작업은 건너뛰었다. 검증 직후 태그와 공개 릴리스는 기존 `v1.1.0`만 존재했고 새 태그·릴리스는 생성하지 않았다. 태그 이벤트의 실제 자동 공개는 다음 정식 버전 태그에서 확인할 대상이다.
+- 새 Release 워크플로와 이번 검증에서는 앱 실행·실제 화면 캡처·클립보드·전역 키 입력 테스트를 수행하지 않았다. 로컬 앱 코드와 Git LFS EXE는 변경하지 않았다.
+
 ## Windows 캡처 시 편집기 잔상 방지 (2026-10-21)
 
 - 캡처 전의 `Hide()` + 고정 120ms 대기를 제거했다. 작업 중 상태가 스티커 선택창을 숨기기 전부터 편집기와 소유 창의 DWM 전환 효과를 일시 억제하고, 창 숨김 → WPF 렌더 큐 대기 → `DwmFlush` → 숨김 상태 확인 → 화면 읽기 순서로 진행한다. 준비 실패 시 이미지를 읽지 않으며 성공·취소·오류 뒤에는 전환 효과 억제를 해제한다.
