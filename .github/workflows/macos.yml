@@ -67,10 +67,9 @@ jobs:
     env:
       SNAPBERRY_TEST_ARTIFACTS: ${{ github.workspace }}/artifacts/macos-ci/${{ matrix.rid }}/screenshots
     steps:
-      - name: Check out source without the Windows LFS executable
+      - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          lfs: false
           persist-credentials: false
 
       - name: Install the repository .NET SDK

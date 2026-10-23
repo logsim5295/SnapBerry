@@ -66,13 +66,13 @@ dotnet build src/SnapBerry.Desktop -c Release
 dotnet test tests/SnapBerry.Desktop.Tests -c Release
 ```
 
-전체 `SnapBerry.sln`에는 WPF 프로젝트가 포함되므로 맥에서는 위 Desktop 프로젝트를 지정한다. Windows의 교차 게시 ZIP은 개발·검사용 중간 산출물이다. 사용자 설치에는 GitHub의 맥 환경에서 만든 DMG를 사용한다. 배포 파일은 `dist/macos/`에 생성하며 Git에는 소스와 빌드 스크립트만 보관한다.
+전체 `SnapBerry.sln`에는 WPF 프로젝트가 포함되므로 맥에서는 위 Desktop 프로젝트를 지정한다. Windows의 교차 게시 ZIP은 개발·검사용 중간 산출물이다. 사용자 설치에는 GitHub Releases의 DMG를 사용한다. 버전 태그의 Release 워크플로가 GitHub의 맥 환경에서 두 CPU용 DMG를 빌드해 공개 릴리스에 첨부한다. 로컬 배포 파일은 `dist/macos/`에 보관할 수 있지만 EXE·DMG·설치 ZIP은 Git이나 Git LFS에 추가하지 않는다. Git에는 소스·빌드 스크립트·문서를 보관한다.
 
 ## GitHub Actions 자동 검증
 
 `.github/workflows/macos.yml`의 `macOS verification`은 관련 소스·테스트·빌드 파일의 push와 pull request에서 실행된다. 기본 브랜치에 워크플로가 반영되면 GitHub의 Actions → macOS verification → Run workflow로 수동 실행할 수도 있다.
 
-- Apple Silicon은 `macos-15`, Intel은 `macos-15-intel`에서 각각 실행한다. SDK는 저장소의 `global.json`을 따른다. WPF 솔루션 대신 Desktop 프로젝트를 빌드하며 Windows 배포 EXE의 LFS 본문은 내려받지 않는다.
+- Apple Silicon은 `macos-15`, Intel은 `macos-15-intel`에서 각각 실행한다. SDK는 저장소의 `global.json`을 따른다. WPF 솔루션 대신 Desktop 프로젝트를 소스에서 빌드하며 저장소의 배포 바이너리나 Git LFS에 의존하지 않는다.
 - Core 테스트와 Desktop 헤드리스 테스트를 실행한다. 편집기·스티커·단축키 설정 화면은 메모리에서 렌더링하며 실제 앱이나 OS 창을 열지 않는다.
 - 각 실행 환경과 같은 CPU의 자체 포함 ZIP을 생성한다. Mach-O CPU, 필수 파일·런타임, Info.plist, ICNS, ZIP 실행 권한을 검사한다.
 - 패키지에 들어 있는 Avalonia·Skia·hostfxr 라이브러리를 실제로 로드하고 필요한 심볼을 조회한다. Carbon도 단축키 API 심볼이 있는지만 검사하며 함수를 호출하거나 전역 단축키를 등록하지 않는다.

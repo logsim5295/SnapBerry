@@ -95,7 +95,7 @@ Windows x64용 포터블 앱입니다. 설치 프로그램, 별도 .NET 설치 �
 dotnet publish src/SnapBerry.App/SnapBerry.App.csproj -c Release -p:PublishProfile=Portable
 ```
 
-`dist/portable-win-x64/SnapBerry.exe` 하나를 전달하면 됩니다. Windows x64용이며 DLL과 .NET 실행 환경을 포함합니다. 실행 시 네이티브 구성 요소는 `%TEMP%/.net`에 자동 추출되므로 임시 폴더 쓰기 권한이 필요합니다. 별도 설치나 관리자 권한은 필요하지 않습니다.
+로컬 게시 결과는 `dist/portable-win-x64/SnapBerry.exe`에 생성됩니다. 사용자에게 제공하는 배포본은 [GitHub Releases](https://github.com/logsim5295/SnapBerry/releases/latest)에서 받습니다. Windows x64용이며 DLL과 .NET 실행 환경을 포함합니다. 실행 시 네이티브 구성 요소는 `%TEMP%/.net`에 자동 추출되므로 임시 폴더 쓰기 권한이 필요합니다. 별도 설치나 관리자 권한은 필요하지 않습니다.
 
 Portable 게시 과정에서 저장소 로컬 도구인 Obfuscar 2.2.50을 자동 복원하고, 앱과 Core DLL의 비공개 이름 변경 및 문자열 숨김을 적용한 뒤 단일 EXE로 묶습니다. 난독화 실패 시 게시도 실패합니다. 최초 게시에는 NuGet 접근이 필요합니다. 일반 Release DLL은 수정하지 않습니다.
 
@@ -107,7 +107,9 @@ WPF/BAML 연결과 네이티브 진입점은 `build/obfuscar.xml`의 제외 규�
 dotnet run --project tools/PortableVerification -- .
 ```
 
-배포 EXE는 Git LFS로 버전 관리합니다. 저장소를 복제한 PC에서는 Git LFS를 설치하고 `git lfs install`, `git lfs pull`을 실행해 실제 EXE를 받습니다. 프로그램 수정 시 일반 Release 빌드와 위 단일 EXE 배포 명령을 함께 실행하고, 갱신된 EXE도 커밋합니다. GitHub LFS 저장 공간 및 전송량 정책이 적용됩니다.
+배포 파일은 GitHub Releases로만 제공합니다. Git에는 소스·빌드 스크립트·문서를 보관하며 EXE·DMG·생성된 설치 ZIP은 커밋하거나 Git LFS로 추적하지 않습니다. 새로 복제한 작업 사본에는 실행 파일이 없으므로, 사용자는 Releases에서 다운로드하고 개발자는 위 명령으로 로컬 빌드합니다. 현재 소스와 빌드에는 Git LFS 설치가 필요하지 않습니다.
+
+프로그램 수정 시 관련 테스트와 일반 Release 빌드, 위 Portable 게시로 검증하고 소스 변경만 커밋합니다. 정식 배포는 버전 태그를 푸시해 Release Actions에서 생성합니다. 기존 커밋·태그의 LFS 이력은 유지하며, 이번 정책 변경은 새 커밋부터 적용합니다.
 
 일반 개발용 Release 빌드 설정은 변경하지 않습니다. 캡처 이력과 설정은 EXE 옆이 아닌 사용자별 `%LOCALAPPDATA%/SnapBerry`에 저장됩니다. 설정 파일은 `settings.json`, 진단 로그는 `Logs` 폴더에 저장합니다. 프로그램을 업데이트할 때는 트레이에서 완전히 종료한 뒤 EXE를 교체합니다.
 
@@ -133,7 +135,7 @@ git push origin v1.2.3
 
 세 플랫폼의 빌드·헤드리스 테스트·패키지 검사가 모두 성공해야 릴리스를 준비합니다. 파일 8개의 업로드 크기·SHA-256을 확인한 뒤 초안을 공개하므로 실패 중인 배포는 공개하지 않습니다. 새 Release 워크플로는 앱 실행·실제 화면 캡처·클립보드·전역 키 입력을 수행하지 않습니다. 기존 macOS 브랜치 검증은 별도로 유지합니다.
 
-실패한 실행은 Actions에서 **Re-run failed jobs**로 재시도할 수 있습니다. 미완성 초안은 같은 태그에서 재사용하며 이미 공개된 릴리스는 덮어쓰지 않습니다. **Run workflow**는 선택한 브랜치의 코드로 입력한 버전의 빌드·패키지 검증만 수행하고 새 태그나 릴리스를 만들지 않습니다. 검증 산출물은 `release-files` Artifact에서 14일 동안 받을 수 있습니다. 공개 릴리스 작업에는 저장소의 기본 `GITHUB_TOKEN`을 사용하며 별도 PAT 등록은 필요하지 않습니다. Windows EXE의 Git LFS 갱신·커밋 규칙은 기존과 같습니다.
+실패한 실행은 Actions에서 **Re-run failed jobs**로 재시도할 수 있습니다. 미완성 초안은 같은 태그에서 재사용하며 이미 공개된 릴리스는 덮어쓰지 않습니다. **Run workflow**는 선택한 브랜치의 코드로 입력한 버전의 빌드·패키지 검증만 수행하고 새 태그나 릴리스를 만들지 않습니다. 검증 산출물은 `release-files` Artifact에서 14일 동안 받을 수 있습니다. 공개 릴리스 작업에는 저장소의 기본 `GITHUB_TOKEN`을 사용하며 별도 PAT 등록은 필요하지 않습니다. EXE·DMG·설치 ZIP은 CI가 소스에서 생성해 릴리스에 첨부하므로 Git에 추가하지 않습니다.
 
 ## 검증 범위
 
