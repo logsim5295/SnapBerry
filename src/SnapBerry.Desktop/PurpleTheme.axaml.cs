@@ -30,6 +30,18 @@ public sealed class PurpleTheme : Styles
             foreach(var key in keys)resources[key]=brush;
         }
 
+        void Neutral(string light,string night,params string[] keys)=>Brushes(Color.Parse(dark?night:light),keys);
+        Neutral("#FAFAFC","#252528","Mac.Window");
+        Neutral("#FCFCFD","#2C2C30","Mac.Toolbar");
+        Neutral("#F1F1F5","#222225","Mac.Sidebar");
+        Neutral("#E9E9EF","#19191C","Mac.Canvas");
+        Neutral("#FFFFFF","#343439","Mac.Card","ButtonBackground");
+        Neutral("#DEDEE5","#45454D","Mac.Border","ButtonBorderBrush");
+        Neutral("#686874","#B0B0BC","Mac.Secondary");
+        Neutral("#FFFFFF","#211E23","Mac.OnAccent");
+        Neutral("#F0F0F4","#303035","ButtonBackgroundDisabled");
+        Neutral("#E5E5EB","#38383F","ButtonBorderBrushDisabled");
+
         Brushes(hover,"Theme.Hover","SystemControlHighlightListLowBrush",
             "ButtonBackgroundPointerOver","RepeatButtonBackgroundPointerOver","ToggleButtonBackgroundPointerOver","ToggleButtonBackgroundIndeterminatePointerOver",
             "ComboBoxBackgroundPointerOver","ComboBoxItemBackgroundPointerOver","MenuFlyoutItemBackgroundPointerOver",

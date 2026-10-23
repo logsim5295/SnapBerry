@@ -16,14 +16,16 @@ public sealed class HotkeySettingsWindow : Window
     public HotkeySettingsWindow(HotkeySettings settings,Func<HotkeySettings,Task> apply)
     {
         var scope=new NameScope();NameScope.SetNameScope(this,scope);
-        this.apply=apply;Title="전역 캡처 단축키";Width=460;SizeToContent=SizeToContent.Height;CanResize=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
-        var panel=new StackPanel{Margin=new Thickness(22),Spacing=10};Content=panel;
-        panel.Children.Add(new TextBlock{Text="전역 캡처 단축키",FontSize=22});enabled=new(){Name="EnableGlobalHotkeys",Content="다른 앱에서도 캡처 단축키 사용",IsChecked=settings.Enabled};panel.Children.Add(enabled);
+        this.apply=apply;Title="전역 캡처 단축키";Width=500;SizeToContent=SizeToContent.Height;CanResize=false;ShowInTaskbar=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        var panel=new StackPanel{Margin=new Thickness(28),Spacing=12};Content=panel;
+        panel.Children.Add(new TextBlock{Text="캡처 단축키",FontSize=23,FontWeight=Avalonia.Media.FontWeight.SemiBold});
+        var description=new TextBlock{Text="SnapBerry가 열려 있지 않은 화면에서도 빠르게 캡처하세요.",TextWrapping=Avalonia.Media.TextWrapping.Wrap};description.Classes.Add("caption");panel.Children.Add(description);
+        enabled=new(){Name="EnableGlobalHotkeys",Content="다른 앱에서도 캡처 단축키 사용",IsChecked=settings.Enabled,Margin=new Thickness(0,8)};panel.Children.Add(enabled);
         scope.Register(enabled.Name!,enabled);
         TextBox Field(string name,string label,string value,string defaultValue)
         {
-            panel.Children.Add(new TextBlock{Text=label});
-            var row=new Grid{ColumnDefinitions=new("*,Auto")};var field=new TextBox{Name=name,Text=value,MaxLength=80,IsReadOnly=true};row.Children.Add(field);scope.Register(name,field);
+            var caption=new TextBlock{Text=label,Margin=new Thickness(0,4,0,0)};caption.Classes.Add("section-title");panel.Children.Add(caption);
+            var row=new Grid{ColumnDefinitions=new("*,Auto")};var field=new TextBox{Name=name,Text=value,MaxLength=80,IsReadOnly=true,FontFamily=new Avalonia.Media.FontFamily("Menlo, Consolas, monospace"),MinHeight=34};ToolTip.SetTip(field,"입력란을 선택하고 사용할 키 조합을 누르세요.");row.Children.Add(field);scope.Register(name,field);
             var reset=new Button{Name="Reset"+name,Content="기본값",Margin=new Thickness(8,0,0,0)};Grid.SetColumn(reset,1);row.Children.Add(reset);scope.Register(reset.Name!,reset);panel.Children.Add(row);
             var restore=value;
             field.GotFocus+=(_,_)=>restore=field.Text??"";
@@ -50,9 +52,9 @@ public sealed class HotkeySettingsWindow : Window
         }
         var defaults=new HotkeySettings();
         region=Field("RegionHotkey","영역 캡처",settings.Region,defaults.Region);window=Field("WindowHotkey","창 캡처",settings.Window,defaults.Window);display=Field("DisplayHotkey","전체 화면",settings.Display,defaults.Display);
-        panel.Children.Add(new TextBlock{Text="예: Ctrl+Shift+1, Command+Option+P, Ctrl+F12",FontSize=11,TextWrapping=Avalonia.Media.TextWrapping.Wrap});
+        var hint=new TextBlock{Text="입력란에서 원하는 키 조합을 누르세요.\n예: Ctrl+Shift+1, Command+Option+P, Ctrl+F12",TextWrapping=Avalonia.Media.TextWrapping.Wrap};hint.Classes.Add("caption");panel.Children.Add(hint);
         panel.Children.Add(error);
-        var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8};var cancel=new Button{Content="취소"};save=new(){Content="저장",Name="SaveHotkeys"};buttons.Children.Add(cancel);buttons.Children.Add(save);panel.Children.Add(buttons);
+        var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8,Margin=new Thickness(0,8,0,0)};var cancel=new Button{Content="취소",IsCancel=true,MinWidth=76};save=new(){Content="저장",Name="SaveHotkeys",IsDefault=true,MinWidth=76};save.Classes.Add("primary");buttons.Children.Add(cancel);buttons.Children.Add(save);panel.Children.Add(buttons);
         scope.Register(error.Name!,error);scope.Register(save.Name!,save);
         cancel.Click+=(_,_)=>Close(false);save.Click+=async (_,_)=>{if(await TrySaveAsync())Close(true);};
     }
