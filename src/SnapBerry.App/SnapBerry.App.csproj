@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><UseWindowsForms>true</UseWindowsForms><ApplicationManifest>app.manifest</ApplicationManifest><ApplicationIcon>Assets/App.ico</ApplicationIcon><AssemblyName>SnapBerry</AssemblyName><Product>SnapBerry</Product><AssemblyTitle>SnapBerry</AssemblyTitle><Version>1.1.0</Version></PropertyGroup><ItemGroup><EmbeddedResource Include="Assets/App.ico" LogicalName="SnapBerry.App.ico"/><ProjectReference Include="../SnapBerry.Core/SnapBerry.Core.csproj"/><Using Remove="System.Windows.Forms"/><Using Remove="System.Drawing"/></ItemGroup><ItemGroup>
+  <!-- 동일한 원문을 EXE에 내장하고 배포 폴더에도 복사한다. -->
+  <EmbeddedResource Include="../../LICENSE.txt" LogicalName="SnapBerry.Legal.Terms" />
+  <EmbeddedResource Include="../../DATA-PROCESSING.md" LogicalName="SnapBerry.Legal.DataProcessing" />
+  <EmbeddedResource Include="../../THIRD-PARTY-NOTICES.md" LogicalName="SnapBerry.Legal.ThirdParty" />
+  <None Include="../../LICENSE.txt;../../DATA-PROCESSING.md;../../THIRD-PARTY-NOTICES.md" Link="%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+</ItemGroup><ItemGroup>
+  <PackageReference Include="SkiaSharp" Version="3.119.4" />
+</ItemGroup></Project>
+<!-- WPF 편집기와 WinForms 트레이를 함께 사용한다. 실행 파일 아이콘과 런타임 아이콘 자원을 모두 포함한다. -->

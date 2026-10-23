@@ -1,0 +1,2 @@
+<Application x:Class="SnapBerry.App.App" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" ShutdownMode="OnExplicitShutdown"><Application.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Editor/ButtonStyles.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Application.Resources></Application>
+<!-- 앱 수명은 트레이의 명시적 종료로 관리한다. 공통 컨트롤 테마를 모든 창에서 공유한다. -->

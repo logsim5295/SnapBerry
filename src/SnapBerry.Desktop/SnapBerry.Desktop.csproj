@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>SnapBerry.Desktop</AssemblyName>
+    <Product>SnapBerry</Product>
+    <Version>1.1.0</Version>
+    <RuntimeIdentifiers>win-x64;osx-arm64;osx-x64</RuntimeIdentifiers>
+    <ApplicationIcon>../SnapBerry.App/Assets/App.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../SnapBerry.Core/SnapBerry.Core.csproj"/>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4"/>
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4"/>
+    <PackageReference Include="SkiaSharp" Version="3.119.4"/>
+    <Compile Include="../SnapBerry.App/Library/CaptureRecord.cs;../SnapBerry.App/Library/CaptureName.cs;../SnapBerry.App/Library/CaptureLibraryStore.cs;../SnapBerry.App/Library/AutosaveCoordinator.cs" Link="Library/%(Filename)%(Extension)"/>
+    <AvaloniaResource Include="../SnapBerry.App/Assets/App.png" Link="Assets/App.png"/>
+    <Compile Include="../SnapBerry.App/Stickers/StickerDefinitions.cs" Link="Stickers/StickerDefinitions.cs"/>
+    <EmbeddedResource Include="../SnapBerry.App/Assets/App.ico" LogicalName="SnapBerry.Desktop.ico"/>
+    <EmbeddedResource Include="../../LICENSE.txt" LogicalName="SnapBerry.Legal.Terms"/>
+    <EmbeddedResource Include="../../DATA-PROCESSING.md" LogicalName="SnapBerry.Legal.DataProcessing"/>
+    <EmbeddedResource Include="../../THIRD-PARTY-NOTICES.md" LogicalName="SnapBerry.Legal.ThirdParty"/>
+  </ItemGroup>
+</Project>
