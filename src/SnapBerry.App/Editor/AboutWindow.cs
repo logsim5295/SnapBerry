@@ -12,7 +12,7 @@ namespace SnapBerry.App.Editor;
 public sealed class AboutWindow : Window
 {
     public string DevelopmentVersion {get;}=(typeof(AboutWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion??typeof(AboutWindow).Assembly.GetName().Version?.ToString()??"1.1.0").Split('+')[0];
-    public string AuthorEmail=>"s921119@gmail.com";
+    public string AuthorEmail=>"logsim1234@gmail.com";
     // 진단에는 환경 정보만 포함하며 사용자 이름·경로·캡처 데이터는 포함하지 않는다.
     internal string DiagnosticText=>$"SnapBerry {DevelopmentVersion}\n빌드: {typeof(AboutWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}\nWindows: {RuntimeInformation.OSDescription}\n.NET: {Environment.Version}\n아키텍처: {RuntimeInformation.ProcessArchitecture}";
     public AboutWindow(Action<string>? copyText=null,Action<string>? openLocation=null)
@@ -29,9 +29,9 @@ public sealed class AboutWindow : Window
         var title=new StackPanel();var name=new TextBlock{Text="SnapBerry",FontSize=22,FontWeight=FontWeights.SemiBold,Foreground=Brush("#263B55")};RegisterName("AboutProductName",name);title.Children.Add(name);
         var version=new TextBlock{Text=$"개발 버전: {DevelopmentVersion}",Foreground=Brush("#65717C"),Margin=new Thickness(0,4,0,0)};RegisterName("AboutVersion",version);title.Children.Add(version);header.Children.Add(title);
         header.MouseLeftButtonDown+=(_,e)=>{if(e.ButtonState==MouseButtonState.Pressed)DragMove();};panel.Children.Add(header);
-        var author=new TextBlock{Foreground=Brush("#4E5C68")};author.Inlines.Add(new Run("만든이: "));var email=new Hyperlink(new Run(AuthorEmail)){NavigateUri=new Uri($"mailto:{AuthorEmail}"),Foreground=Brush("#923C83")};RegisterName("AboutAuthorLink",email);author.Inlines.Add(email);panel.Children.Add(author);
+        var author=new TextBlock{Foreground=Brush("#4E5C68")};author.Inlines.Add(new Run("만든이: ynsim · "));var email=new Hyperlink(new Run(AuthorEmail)){NavigateUri=new Uri($"mailto:{AuthorEmail}"),Foreground=Brush("#923C83")};RegisterName("AboutAuthorLink",email);author.Inlines.Add(email);panel.Children.Add(author);
         var repository=new TextBlock{Foreground=Brush("#4E5C68"),Margin=new Thickness(0,8,0,0)};repository.Inlines.Add(new Run("GitHub: "));
-        var github=new Hyperlink(new Run("simlog1234/SnapBerry")){NavigateUri=new Uri("https://github.com/simlog1234/SnapBerry"),Foreground=Brush("#923C83"),ToolTip="GitHub 저장소 열기"};RegisterName("GitHubLink",github);repository.Inlines.Add(github);panel.Children.Add(repository);
+        var github=new Hyperlink(new Run("logsim5295/SnapBerry")){NavigateUri=new Uri("https://github.com/logsim5295/SnapBerry"),Foreground=Brush("#923C83"),ToolTip="GitHub 저장소 열기"};RegisterName("GitHubLink",github);repository.Inlines.Add(github);panel.Children.Add(repository);
         var details=new Expander{Header="상세 정보",Style=(Style)FindResource("PurpleExpanderStyle"),Margin=new Thickness(0,18,0,0)};
         details.Content=new TextBlock{Text=$"Windows: {RuntimeInformation.OSDescription}\n.NET: {Environment.Version}\n아키텍처: {RuntimeInformation.ProcessArchitecture}",Foreground=Brush("#4E5C68"),TextWrapping=TextWrapping.Wrap,LineHeight=22};RegisterName("AboutDetails",details);panel.Children.Add(details);
         var legal=new Expander{Header="이용약관 및 데이터 처리 안내",Style=(Style)FindResource("PurpleExpanderStyle"),Margin=new Thickness(0,12,0,0)};

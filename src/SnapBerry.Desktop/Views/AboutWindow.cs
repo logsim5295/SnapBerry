@@ -13,7 +13,7 @@ public sealed class AboutWindow : Window
 {
     private readonly TextBlock status=new(){Name="AboutActionStatus",TextWrapping=TextWrapping.Wrap,MinHeight=20};
     public string DevelopmentVersion {get;}=(typeof(AboutWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion??typeof(AboutWindow).Assembly.GetName().Version?.ToString()??"1.1.0").Split('+')[0];
-    public string AuthorEmail=>"s921119@gmail.com";
+    public string AuthorEmail=>"logsim1234@gmail.com";
     // 사용자 이름·파일 경로·캡처 데이터는 포함하지 않는다.
     public string Diagnostics=>$"SnapBerry {DevelopmentVersion}\n빌드: {typeof(AboutWindow).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion}\nOS: {RuntimeInformation.OSDescription}\n.NET: {Environment.Version}\n아키텍처: {RuntimeInformation.ProcessArchitecture}";
 
@@ -31,7 +31,7 @@ public sealed class AboutWindow : Window
         var version=new TextBlock{Text=$"개발 버전: {DevelopmentVersion}"};Register("AboutVersion",version);panel.Children.Add(version);
         panel.Children.Add(new TextBlock{Text="만든이: ynsim"});
         var author=new Button{Content=AuthorEmail};Register("AboutAuthorLink",author);panel.Children.Add(author);
-        var github=new Button{Content="GitHub · simlog1234/SnapBerry"};Register("GitHubLink",github);panel.Children.Add(github);
+        var github=new Button{Content="GitHub · logsim5295/SnapBerry"};Register("GitHubLink",github);panel.Children.Add(github);
         var details=new Expander{Header="상세 정보",HorizontalAlignment=HorizontalAlignment.Stretch,Content=new TextBlock{Text=Diagnostics,TextWrapping=TextWrapping.Wrap}};Register("AboutDetails",details);panel.Children.Add(details);
         var documents=new TabControl{Height=280};Register("AboutLegalDocuments",documents);
         foreach(var (label,resource) in new[]{("이용약관","Terms"),("데이터 처리","DataProcessing"),("외부 구성 요소","ThirdParty")})
@@ -56,7 +56,7 @@ public sealed class AboutWindow : Window
         Task OpenAsync(string target){open(target);return Task.CompletedTask;}
         copyButton.Click+=async (_,_)=>await ReportAsync(copyButton,()=>copy(Diagnostics),"진단 정보 복사됨");
         folder.Click+=async (_,_)=>await ReportAsync(folder,()=>OpenAsync(dataDirectory),"저장 폴더 열림");
-        github.Click+=async (_,_)=>await ReportAsync(github,()=>OpenAsync("https://github.com/simlog1234/SnapBerry"),"GitHub 저장소 열림");
+        github.Click+=async (_,_)=>await ReportAsync(github,()=>OpenAsync("https://github.com/logsim5295/SnapBerry"),"GitHub 저장소 열림");
         author.Click+=async (_,_)=>await ReportAsync(author,()=>OpenAsync("mailto:"+AuthorEmail),"메일 앱 열림");
         var close=new Button{Content="닫기",IsCancel=true,IsDefault=true,HorizontalAlignment=HorizontalAlignment.Right};Register("CloseAboutButton",close);close.Click+=(_,_)=>Close();panel.Children.Add(close);
     }

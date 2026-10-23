@@ -91,7 +91,10 @@ public class DialogParityTests
             Click(dialog.FindControl<Button>("CopyDiagnosticsButton")!);
             Assert.Single(copied);Assert.Contains("SnapBerry",copied[0]);Assert.DoesNotContain("/Users/private",copied[0]);
             Click(dialog.FindControl<Button>("OpenStorageFolderButton")!);Assert.Equal("/Users/private/Captures",Assert.Single(opened));
-            Click(dialog.FindControl<Button>("GitHubLink")!);Assert.Equal("https://github.com/simlog1234/SnapBerry",opened[1]);
+            Click(dialog.FindControl<Button>("GitHubLink")!);Assert.Equal("https://github.com/logsim5295/SnapBerry",opened[1]);
+            Assert.Equal("GitHub · logsim5295/SnapBerry",dialog.FindControl<Button>("GitHubLink")!.Content);
+            Assert.Equal("logsim1234@gmail.com",dialog.FindControl<Button>("AboutAuthorLink")!.Content);
+            Click(dialog.FindControl<Button>("AboutAuthorLink")!);Assert.Equal("mailto:logsim1234@gmail.com",opened[2]);
             Assert.All(dialog.FindControl<TabControl>("AboutLegalDocuments")!.Items.OfType<TabItem>(),item=>Assert.NotEmpty(((TextBox)item.Content!).Text!));
         }
         finally{dialog.Close();}

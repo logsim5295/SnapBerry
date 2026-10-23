@@ -17,7 +17,7 @@ public class AboutWindowTests
     });
     [Fact] public void AboutDialogShowsBuildVersionAndAuthor()=>Sta.Run(()=>
     {
-        var w=new AboutWindow();try{Assert.Equal("SnapBerry 정보",w.Title);Assert.False(string.IsNullOrWhiteSpace(w.DevelopmentVersion));Assert.Equal("s921119@gmail.com",w.AuthorEmail);Assert.Equal("SnapBerry",((TextBlock)w.FindName("AboutProductName")).Text);Assert.Contains(w.DevelopmentVersion,((TextBlock)w.FindName("AboutVersion")).Text);Assert.Equal(ResizeMode.NoResize,w.ResizeMode);Assert.True(((Button)w.FindName("CloseAboutButton")).IsCancel);}
+        var w=new AboutWindow();try{Assert.Equal("SnapBerry 정보",w.Title);Assert.False(string.IsNullOrWhiteSpace(w.DevelopmentVersion));Assert.Equal("logsim1234@gmail.com",w.AuthorEmail);Assert.Equal("SnapBerry",((TextBlock)w.FindName("AboutProductName")).Text);Assert.Contains(w.DevelopmentVersion,((TextBlock)w.FindName("AboutVersion")).Text);Assert.Equal(ResizeMode.NoResize,w.ResizeMode);Assert.True(((Button)w.FindName("CloseAboutButton")).IsCancel);}
         finally{w.Close();}
     });
 }
