@@ -75,7 +75,7 @@ public partial class EditorWindow : Window
             try{imagePan.Cancel();canvas.Refresh();UpdateCommands();UpdateNumber();UpdateProperties();if(Model.History is not null){autosave.Queue(Model.Snapshot(),Model.History.CurrentStateToken);StatusText.Text="저장 중…";}}
             catch(Exception e){StatusText.Text=e.Message;}
         };
-        Model.MagicWandChanged+=(_,_)=>{canvas.Refresh();UpdateCommands();UpdateProperties();if(Model.Tool==EditorTool.MagicWand)StatusText.Text=Model.HasPixelSelection?$"{Model.MagicWandCount:N0} 픽셀 선택됨 · Delete로 지우기 · Esc로 취소":"마술봉: 원본 이미지의 색상을 클릭하세요.";};
+        Model.MagicWandChanged+=(_,_)=>{canvas.Refresh();UpdateCommands();UpdateProperties();if(Model.Tool==EditorTool.MagicWand)StatusText.Text=Model.HasPixelSelection?$"{Model.MagicWandCount:N0} 픽셀 선택됨 · Delete로 지우기 · Esc로 취소":"배경 지우개: 원본 이미지의 색상을 클릭하세요.";};
         canvas.TextRequested+=EditText;canvas.SelectionChanged+=()=>{UpdateProperties();UpdateCommands();};ready=true;UpdateCommands();UpdateProperties();
         Loaded+=async(_,_)=>{FitInitialWindow();DiagnosticStage?.Invoke("library.load.begin");await SafeAsync(RefreshLibraryAsync);DiagnosticStage?.Invoke("library.load.end");};Closing+=WindowClosing;PreviewKeyDown+=WindowKeyDown;
         IsVisibleChanged+=(_,_)=>{if(!IsVisible)imagePan.Cancel();UpdateStickerPickerVisibility();};Deactivated+=(_,_)=>imagePan.Cancel();

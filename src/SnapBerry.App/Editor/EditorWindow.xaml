@@ -58,7 +58,7 @@
      <r:RibbonToggleButton Label="모자이크" Tag="Mosaic" ToolTip="모자이크" Click="ToolClick"/>
      <r:RibbonToggleButton Label="번호" Tag="Number" ToolTip="번호" Click="ToolClick"/>
      <r:RibbonToggleButton Label="스티커" Tag="Sticker" ToolTip="스티커" Click="ToolClick"/>
-     <r:RibbonToggleButton x:Name="MagicWandButton" Label="마술봉" Tag="MagicWand" ToolTip="색상을 클릭해 선택하고 Delete로 지웁니다. 허용 오차와 전체 색상 선택을 조절할 수 있습니다." Click="ToolClick"/>
+     <r:RibbonToggleButton x:Name="MagicWandButton" Label="배경 지우개" Tag="MagicWand" ToolTip="색상을 클릭해 선택하고 Delete로 지웁니다. 허용 오차와 전체 색상 선택을 조절할 수 있습니다." Click="ToolClick"/>
      <r:RibbonToggleButton Label="자르기" Tag="Crop" ToolTip="이미지 모서리를 드래그하여 자르기" Click="ToolClick"/>
     </editor:ThemedRibbonGroup>
     <!-- 속성은 리본 안에 배치한다. 좁은 창에서는 리본 그룹의 기본 접힘 메뉴로 접근한다. -->

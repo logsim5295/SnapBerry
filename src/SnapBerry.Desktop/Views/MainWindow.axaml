@@ -70,8 +70,8 @@
        <WrapPanel Name="ToolButtons" VerticalAlignment="Center">
         <Button Classes="toolbar tool" Content="선택" Tag="0"/><Button Classes="toolbar tool" Content="화살표" Tag="1"/><Button Classes="toolbar tool" Content="텍스트" Tag="2"/>
         <Button Classes="toolbar tool" Content="사각형" Tag="3"/><Button Classes="toolbar tool" Content="모자이크" Tag="4"/><Button Classes="toolbar tool" Content="번호" Tag="5"/>
-        <Button Name="MagicWandButton" Classes="toolbar tool" Content="마술봉" Tag="8" ToolTip.Tip="색상 클릭 → 허용 오차 조절 → Delete로 투명하게 지우기"/><Button Name="StickerButton" Classes="toolbar tool" Content="스티커"/><Button Classes="toolbar tool" Content="자르기" Tag="7"/>
-        <ComboBox Name="ToolBox" IsVisible="False" SelectedIndex="0"><ComboBoxItem Content="선택"/><ComboBoxItem Content="화살표"/><ComboBoxItem Content="텍스트"/><ComboBoxItem Content="사각형"/><ComboBoxItem Content="모자이크"/><ComboBoxItem Content="번호"/><ComboBoxItem Content="이미지 추가"/><ComboBoxItem Content="자르기"/><ComboBoxItem Content="마술봉"/></ComboBox>
+        <Button Name="MagicWandButton" Classes="toolbar tool" Content="배경 지우개" Tag="8" ToolTip.Tip="색상 클릭 → 허용 오차 조절 → Delete로 투명하게 지우기"/><Button Name="StickerButton" Classes="toolbar tool" Content="스티커"/><Button Classes="toolbar tool" Content="자르기" Tag="7"/>
+        <ComboBox Name="ToolBox" IsVisible="False" SelectedIndex="0"><ComboBoxItem Content="선택"/><ComboBoxItem Content="화살표"/><ComboBoxItem Content="텍스트"/><ComboBoxItem Content="사각형"/><ComboBoxItem Content="모자이크"/><ComboBoxItem Content="번호"/><ComboBoxItem Content="이미지 추가"/><ComboBoxItem Content="자르기"/><ComboBoxItem Content="배경 지우개"/></ComboBox>
        </WrapPanel>
        <Border Classes="toolbar-divider"/>
        <Button Name="AddImageButton" Classes="toolbar icon" Content="이미지 추가"/>

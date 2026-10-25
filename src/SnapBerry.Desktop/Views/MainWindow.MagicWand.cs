@@ -28,6 +28,6 @@ public sealed partial class MainWindow
     private void MagicWandChanged(object? sender,EventArgs args)
     {
         if(closed)return;RefreshSelection();
-        if(editor.Tool==Editing.DesktopTool.MagicWand)Status(editor.HasPixelSelection?$"{editor.MagicWandCount:N0} 픽셀 선택됨 · Delete로 지우기 · Esc로 취소":"마술봉: 원본 이미지의 색상을 클릭하세요.");
+        if(editor.Tool==Editing.DesktopTool.MagicWand)Status(editor.HasPixelSelection?$"{editor.MagicWandCount:N0} 픽셀 선택됨 · Delete로 지우기 · Esc로 취소":"배경 지우개: 원본 이미지의 색상을 클릭하세요.");
     }
 }
