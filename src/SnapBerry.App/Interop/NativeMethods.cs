@@ -15,6 +15,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")]public static extern bool IsIconic(IntPtr hwnd);
     [DllImport("user32.dll")]public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid);
     [DllImport("user32.dll")]public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect);
+    [DllImport("user32.dll")]public static extern uint GetDpiForWindow(IntPtr hwnd);
     [DllImport("user32.dll")]public static extern IntPtr GetWindow(IntPtr hwnd,uint command);
     [DllImport("user32.dll")]public static extern IntPtr MonitorFromWindow(IntPtr hwnd,uint flags);
     [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern bool GetMonitorInfo(IntPtr monitor,ref MonitorInfo info);

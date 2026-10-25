@@ -10,7 +10,31 @@ namespace SnapBerry.Windows.Tests;
 // 창을 표시하지 않고 스티커 도구창의 외형·열 배치와 연속 선택 동작을 검증한다.
 public class StickerPickerDesignTests
 {
-    [Fact] public void RoundedPickerKeepsFourColumnsAndResizableToolWindowBehavior()=>Sta.Run(()=>
+    [Theory] [InlineData(370)] [InlineData(270)]
+    public void HeaderPaddingReceivesDragInputWithoutCoveringContent(double width)=>Sta.Run(()=>
+    {
+        var w=new StickerPicker();
+        try
+        {
+            var chrome=Assert.IsType<Border>(w.Content);
+            chrome.Measure(new Size(width,w.Height));chrome.Arrange(new Rect(0,0,width,w.Height));chrome.UpdateLayout();
+            var dragArea=Assert.IsType<Border>(w.FindName("StickerHeaderDragArea"));
+            // 미표시 Window의 IsVisible 필터를 거치지 않고 렌더링된 입력 영역을 검사한다.
+            foreach(var x in new[]{10d,width/2,width-10})
+                Assert.Same(dragArea,VisualTreeHelper.HitTest(chrome,new Point(x,10))?.VisualHit);
+            var close=(Button)w.FindName("CloseStickerPickerButton");
+            var closePoint=close.TranslatePoint(new Point(close.ActualWidth/2,close.ActualHeight/2),chrome);
+            var hit=Assert.IsAssignableFrom<DependencyObject>(VisualTreeHelper.HitTest(chrome,closePoint)?.VisualHit);
+            while(hit!=close&&hit is Visual)hit=VisualTreeHelper.GetParent(hit);
+            Assert.Same(close,hit);
+            var categories=(ComboBox)w.FindName("StickerCategories");
+            Assert.True(categories.TranslatePoint(new Point(),chrome).Y>=dragArea.TranslatePoint(new Point(0,dragArea.ActualHeight),chrome).Y);
+            Assert.False(w.IsVisible);
+        }
+        finally{w.Close();}
+    });
+
+    [Fact] public void RoundedPickerKeepsThreeColumnsAndResizableToolWindowBehavior()=>Sta.Run(()=>
     {
         var w=new StickerPicker();
         try
@@ -22,8 +46,8 @@ public class StickerPickerDesignTests
             chrome.Measure(new Size(w.Width,w.Height));chrome.Arrange(new Rect(0,0,w.Width,w.Height));chrome.UpdateLayout();
             var scroll=(ScrollViewer)w.FindName("StickerScroll");var wrap=(WrapPanel)scroll.Content;var buttons=wrap.Children.OfType<Button>().ToArray();
             Assert.Equal(Visibility.Visible,scroll.ComputedVerticalScrollBarVisibility);
-            var first=buttons[0].TranslatePoint(new Point(),wrap);for(var i=1;i<4;i++)Assert.Equal(first.Y,buttons[i].TranslatePoint(new Point(),wrap).Y,1);
-            Assert.True(buttons[4].TranslatePoint(new Point(),wrap).Y>first.Y);Assert.False(w.IsVisible);
+            var first=buttons[0].TranslatePoint(new Point(),wrap);for(var i=1;i<3;i++)Assert.Equal(first.Y,buttons[i].TranslatePoint(new Point(),wrap).Y,1);
+            Assert.True(buttons[3].TranslatePoint(new Point(),wrap).Y>first.Y);Assert.False(w.IsVisible);
             var artifacts=Environment.GetEnvironmentVariable("SNAPBERRY_TEST_ARTIFACTS");
             if(artifacts is not null)
             {

@@ -11,6 +11,7 @@ public sealed record AppSettings
     // 첫 닫기 안내를 확인한 사용자에게는 다음 실행부터 안내를 반복하지 않는다.
     public bool HasSeenTrayNotice { get; init; }
     public double HistoryPanelWidth { get; init; } = 230;
+    public StickerWindowState? StickerWindow { get; init; }
     public string RegionKey { get; init; } = "Ctrl+Shift+1";
     public string WindowKey { get; init; } = "Ctrl+Shift+2";
     public string DesktopKey { get; init; } = "Ctrl+Shift+3";

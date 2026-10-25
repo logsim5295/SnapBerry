@@ -334,7 +334,20 @@ public partial class EditorWindow : Window
         if(busy||Model.Document is null||Model.Tool!=EditorTool.Sticker)return;
         if(stickerPicker is not null){stickerPicker.Show();stickerPicker.Activate();return;}
         var picker=new StickerPicker(Model.SelectedSticker){Owner=this,Icon=Icon,WindowStartupLocation=WindowStartupLocation.Manual};
-        picker.Left=Left+Math.Max(0,ActualWidth-picker.Width-16);picker.Top=Top+Math.Max(0,Math.Min(180,ActualHeight-picker.Height-32));
+        var saved=settings.StickerWindow;var initialSize=new Size(picker.Width,picker.Height);var initialized=false;
+        StickerWindowState? lastPlacement=saved;
+        void RememberPlacement(){if(initialized)lastPlacement=StickerPickerPlacement.Capture(picker)??lastPlacement;}
+        picker.SourceInitialized+=(_,_)=>StickerPickerPlacement.Apply(picker,this,saved,initialSize);
+        // 레이아웃/DPI 확정 후 한 번만 복원한다. 캡처 때문에 숨겼다 표시해도 사용자가 옮긴 위치를 유지한다.
+        picker.Loaded+=(_,_)=>{if(initialized)return;StickerPickerPlacement.Apply(picker,this,saved,initialSize);initialized=true;RememberPlacement();};
+        picker.LocationChanged+=(_,_)=>RememberPlacement();picker.SizeChanged+=(_,_)=>RememberPlacement();
+        picker.Closing+=(_,_)=>
+        {
+            RememberPlacement();if(lastPlacement is null)return;
+            settings=settings with{StickerWindow=lastPlacement};
+            try{settings=settingsService.Load() with{StickerWindow=lastPlacement};settingsService.Save(settings);}
+            catch(Exception error)when(error is IOException or UnauthorizedAccessException){StatusText.Text="스티커 창 위치 저장 실패: "+error.Message;}
+        };
         picker.StickerSelected+=definition=>{if(busy||Model.Tool!=EditorTool.Sticker)return;canvas.CancelGesture();Model.SelectedSticker=definition;Model.SelectedId=null;StickerChooseButton.Content=definition.Name;canvas.InvalidateVisual();UpdateCommands();};
         picker.Closed+=(_,_)=>{if(stickerPicker==picker)stickerPicker=null;};stickerPicker=picker;picker.Show();
     }

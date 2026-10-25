@@ -8,7 +8,7 @@ namespace SnapBerry.Windows.Tests;
 // 스티커 선택 강조 색상과 기본 창 크기를 검증한다.
 public class StickerPickerAppearanceTests
 {
-    [Fact] public void DefaultWidthFitsFourColumnsWithVerticalScrollbar()=>Sta.Run(()=>
+    [Fact] public void DefaultWidthFitsThreeColumnsWithVerticalScrollbar()=>Sta.Run(()=>
     {
         var w=new StickerPicker();
         try
@@ -18,8 +18,8 @@ public class StickerPickerAppearanceTests
             var buttons=wrap.Children.OfType<Button>().ToArray();
             Assert.Equal(Visibility.Visible,scroll.ComputedVerticalScrollBarVisibility);
             var first=buttons[0].TranslatePoint(new Point(),wrap);
-            for(var i=1;i<4;i++)Assert.Equal(first.Y,buttons[i].TranslatePoint(new Point(),wrap).Y,1);
-            Assert.True(buttons[4].TranslatePoint(new Point(),wrap).Y>first.Y);
+            for(var i=1;i<3;i++)Assert.Equal(first.Y,buttons[i].TranslatePoint(new Point(),wrap).Y,1);
+            Assert.True(buttons[3].TranslatePoint(new Point(),wrap).Y>first.Y);
         }
         finally{w.Close();}
     });
