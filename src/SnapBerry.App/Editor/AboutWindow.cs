@@ -23,12 +23,14 @@ public sealed class AboutWindow : Window
         Title="SnapBerry 정보";Width=480;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;WindowStartupLocation=WindowStartupLocation.CenterOwner;ShowInTaskbar=false;
         WindowStyle=WindowStyle.None;AllowsTransparency=true;Background=Brushes.Transparent;FontFamily=new FontFamily("Segoe UI");FontSize=13;
         var panel=new StackPanel{Margin=new Thickness(24)};
-        var header=new StackPanel{Orientation=Orientation.Horizontal,Background=Brushes.Transparent,Margin=new Thickness(0,0,0,18)};
+        var headerRow=new Grid{Margin=new Thickness(0,0,0,18)};headerRow.ColumnDefinitions.Add(new());headerRow.ColumnDefinitions.Add(new(){Width=GridLength.Auto});panel.Children.Add(headerRow);
+        var header=new StackPanel{Orientation=Orientation.Horizontal,Background=Brushes.Transparent};headerRow.Children.Add(header);
         BitmapSource appIcon;using(var stream=typeof(AboutWindow).Assembly.GetManifestResourceStream("SnapBerry.App.ico")!){appIcon=BitmapDecoder.Create(stream,BitmapCreateOptions.None,BitmapCacheOption.OnLoad).Frames.OrderByDescending(frame=>frame.PixelWidth).First();appIcon.Freeze();}
         var icon=new Image{Source=appIcon,Width=40,Height=40,Margin=new Thickness(0,0,12,0)};RegisterName("AboutAppIcon",icon);header.Children.Add(icon);
         var title=new StackPanel();var name=new TextBlock{Text="SnapBerry",FontSize=22,FontWeight=FontWeights.SemiBold,Foreground=Brush("#263B55")};RegisterName("AboutProductName",name);title.Children.Add(name);
         var version=new TextBlock{Text=$"개발 버전: {DevelopmentVersion}",Foreground=Brush("#65717C"),Margin=new Thickness(0,4,0,0)};RegisterName("AboutVersion",version);title.Children.Add(version);header.Children.Add(title);
-        header.MouseLeftButtonDown+=(_,e)=>{if(e.ButtonState==MouseButtonState.Pressed)DragMove();};panel.Children.Add(header);
+        header.MouseLeftButtonDown+=(_,e)=>{if(e.ButtonState==MouseButtonState.Pressed)DragMove();};
+        var close=new Button{Content=new TextBlock{Text="\uE8BB",FontFamily=new FontFamily("Segoe Fluent Icons"),FontSize=12},Width=32,Height=32,ToolTip="닫기",IsCancel=true,IsDefault=true,VerticalAlignment=VerticalAlignment.Top,Foreground=ThemeResources.Get(this,"Accent")};RegisterName("CloseAboutButton",close);System.Windows.Automation.AutomationProperties.SetName(close,"정보 창 닫기");close.Click+=(_,_)=>Close();Grid.SetColumn(close,1);headerRow.Children.Add(close);
         var author=new TextBlock{Foreground=Brush("#4E5C68")};author.Inlines.Add(new Run("만든이: ynsim · "));var email=new Hyperlink(new Run(AuthorEmail)){NavigateUri=new Uri($"mailto:{AuthorEmail}"),Foreground=Brush("#923C83")};RegisterName("AboutAuthorLink",email);author.Inlines.Add(email);panel.Children.Add(author);
         var repository=new TextBlock{Foreground=Brush("#4E5C68"),Margin=new Thickness(0,8,0,0)};repository.Inlines.Add(new Run("GitHub: "));
         var github=new Hyperlink(new Run("logsim5295/SnapBerry")){NavigateUri=new Uri("https://github.com/logsim5295/SnapBerry"),Foreground=Brush("#923C83"),ToolTip="GitHub 저장소 열기"};RegisterName("GitHubLink",github);repository.Inlines.Add(github);panel.Children.Add(repository);
@@ -70,7 +72,6 @@ public sealed class AboutWindow : Window
         folder.Click+=(_,_)=>Report(()=>Open(AppDataPaths.RootDirectory),"저장 폴더 열림");
         email.RequestNavigate+=(_,e)=>{e.Handled=true;Report(()=>Open(e.Uri.AbsoluteUri),"메일 앱 열림");};
         github.RequestNavigate+=(_,e)=>{e.Handled=true;Report(()=>Open(e.Uri.AbsoluteUri),"GitHub 저장소 열림");};
-        var close=new Button{Content="닫기",Width=80,Height=34,IsCancel=true,IsDefault=true,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,20,0,0),Style=(Style)FindResource("PurplePrimaryButtonStyle")};RegisterName("CloseAboutButton",close);panel.Children.Add(close);
         MaxHeight=Math.Max(360,SystemParameters.WorkArea.Height-48);
         Content=new Border{Background=ThemeResources.Get(this,"Surface"),BorderBrush=Brush("#EBD5E6"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(8),Child=new ScrollViewer{Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled}};
     }

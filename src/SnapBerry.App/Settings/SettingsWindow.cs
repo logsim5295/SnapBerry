@@ -17,11 +17,13 @@ public sealed class SettingsWindow : Window
         Title="설정";Width=480;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         WindowStyle=WindowStyle.None;AllowsTransparency=true;Background=Brushes.Transparent;FontFamily=new FontFamily("Segoe UI");FontSize=13;
         var panel=new StackPanel{Margin=new Thickness(24)};
-        var header=new StackPanel{Orientation=Orientation.Horizontal,Background=Brushes.Transparent,Margin=new Thickness(0,0,0,24)};
+        var headerRow=new Grid{Margin=new Thickness(0,0,0,24)};headerRow.ColumnDefinitions.Add(new());headerRow.ColumnDefinitions.Add(new(){Width=GridLength.Auto});panel.Children.Add(headerRow);
+        var header=new StackPanel{Orientation=Orientation.Horizontal,Background=Brushes.Transparent};headerRow.Children.Add(header);
         header.Children.Add(new Image{Source=RibbonIcons.Create("Settings"),Width=28,Height=28,Margin=new Thickness(0,0,10,0)});
         header.Children.Add(new TextBlock{Text="설정",FontSize=20,FontWeight=FontWeights.SemiBold,Foreground=ThemeResources.Get(this,"Text"),VerticalAlignment=VerticalAlignment.Center});
         // 기본 제목 표시줄 대신 제목 영역을 드래그해 창을 이동할 수 있게 한다.
-        header.MouseLeftButtonDown+=(_,e)=>{if(e.ButtonState==MouseButtonState.Pressed)DragMove();};RegisterName("SettingsHeader",header);panel.Children.Add(header);
+        header.MouseLeftButtonDown+=(_,e)=>{if(e.ButtonState==MouseButtonState.Pressed)DragMove();};RegisterName("SettingsHeader",header);
+        var close=new Button{Content=new TextBlock{Text="\uE8BB",FontFamily=new FontFamily("Segoe Fluent Icons"),FontSize=12},Width=32,Height=32,ToolTip="닫기",IsCancel=true,VerticalAlignment=VerticalAlignment.Top,Foreground=ThemeResources.Get(this,"Accent")};RegisterName("CloseSettingsButton",close);System.Windows.Automation.AutomationProperties.SetName(close,"설정 창 닫기");close.Click+=(_,_)=>Close();Grid.SetColumn(close,1);headerRow.Children.Add(close);
         panel.Children.Add(new TextBlock{Text="화면 테마",FontWeight=FontWeights.SemiBold,Foreground=ThemeResources.Get(this,"Accent"),Margin=new Thickness(0,0,0,8)});
         var theme=new ComboBox{Style=(Style)FindResource("PurpleComboBoxStyle"),Height=34,Margin=new Thickness(0,0,0,20)};
         theme.Items.Add(new ComboBoxItem{Content="화이트 모드"});theme.Items.Add(new ComboBoxItem{Content="다크 모드"});theme.SelectedIndex=settings.Theme==AppTheme.Dark?1:0;
@@ -54,9 +56,8 @@ public sealed class SettingsWindow : Window
         var defaults=new AppSettings();var region=Input("영역 캡처","RegionHotkey",settings.RegionKey,defaults.RegionKey);var window=Input("창 캡처","WindowHotkey",settings.WindowKey,defaults.WindowKey);var desktop=Input("전체 화면 캡처","DesktopHotkey",settings.DesktopKey,defaults.DesktopKey);
         var startup=new CheckBox{Style=(Style)FindResource("PurpleCheckBoxStyle"),Content="Windows 시작 시 실행",IsChecked=settings.StartWithWindows,Margin=new Thickness(0,4,0,12)};panel.Children.Add(startup);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,16,0,0)};
-        var cancel=new Button{Content="취소",Width=80,Height=34,IsCancel=true};RegisterName("CancelSettingsButton",cancel);cancel.Click+=(_,_)=>DialogResult=false;
-        save=new Button{Content="저장",Height=34,Width=80,Margin=new Thickness(8,0,0,0),Style=(Style)FindResource("PurplePrimaryButtonStyle")};RegisterName("SaveSettingsButton",save);save.Click+=(_,_)=>
-        {Validate();if(!save.IsEnabled)return;Result=settings with{Theme=theme.SelectedIndex==1?AppTheme.Dark:AppTheme.Light,RegionKey=region.Text,WindowKey=window.Text,DesktopKey=desktop.Text,StartWithWindows=startup.IsChecked==true};DialogResult=true;};buttons.Children.Add(cancel);buttons.Children.Add(save);panel.Children.Add(buttons);
+        save=new Button{Content="저장",Height=34,Width=80,Style=(Style)FindResource("PurplePrimaryButtonStyle")};RegisterName("SaveSettingsButton",save);save.Click+=(_,_)=>
+        {Validate();if(!save.IsEnabled)return;Result=settings with{Theme=theme.SelectedIndex==1?AppTheme.Dark:AppTheme.Light,RegionKey=region.Text,WindowKey=window.Text,DesktopKey=desktop.Text,StartWithWindows=startup.IsChecked==true};DialogResult=true;};buttons.Children.Add(save);panel.Children.Add(buttons);
         Content=new Border{Background=ThemeResources.Get(this,"Surface"),BorderBrush=ThemeResources.Get(this,"Selected"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(8),Child=panel};Validate();
     }
     // 트레이에서 열 때 숨김·최소화 편집기를 소유자로 연결하지 않아 편집기가 함께 복원되지 않게 한다.
