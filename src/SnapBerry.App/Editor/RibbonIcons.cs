@@ -51,9 +51,13 @@ public static class RibbonIcons
                 case "Rectangle":
                     dc.DrawRectangle(null,Pen(Ink),new Rect(6,6,20,20));foreach(var (x,y) in new[]{(3d,3d),(23d,3d),(3d,23d),(23d,23d)})Box(x,y,6,6,Yellow,1);break;
                 case "MagicWand":
-                    Line(5,27,23,9,Ink,7);Line(5,27,23,9,Berry,4);Line(20,12,24,8,Yellow,4);
-                    Shape("M8,2 L10,7 L15,9 L10,11 L8,16 L6,11 L1,9 L6,7 Z",Yellow);
-                    Line(25,20,31,20,Yellow,2);Line(28,17,28,23,Yellow,2);break;
+                    Box(3,3,18,18,Paper,2);
+                    var checker=ColorBrush(theme==AppTheme.Dark?"#596274":"#C1C8D2");
+                    for(var row=0;row<3;row++)for(var column=0;column<3;column++)
+                        if((row+column)%2==0)dc.DrawRectangle(checker,null,new Rect(4.5+column*5,4.5+row*5,5,5));
+                    Shape("M11,21 L22,10 Q23,9 24,10 L30,16 Q31,17 30,18 L20,28 H16 L11,23 Q10,22 11,21 Z",Berry);
+                    Shape("M11,21 L17,15 L25,23 L20,28 H16 L11,23 Q10,22 11,21 Z",Yellow);
+                    Line(24,29,30,29);break;
                 case "Crop":
                     dc.DrawRectangle(Yellow,Pen(Ink),new Rect(12,12,8,8));
                     Line(9,3,9,23,Berry,4);Line(9,23,29,23,Berry,4);
