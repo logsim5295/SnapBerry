@@ -3,7 +3,7 @@ namespace SnapBerry.Core;
 public enum AnnotationKind { Arrow, Text, Rectangle, Mosaic, StepMarker, Sticker }
 public enum StepSequenceMode { Numeric, Alphabetic, UppercaseAlphabetic }
 public enum StrokePattern { Solid, Dash, Dot, DashDot, DashDotDot }
-public enum CaptureMode { Region, Window, Desktop, ImageFile, Clipboard }
+public enum CaptureMode { Region, Window, Desktop, ImageFile, Clipboard, Blank }
 // 주석 위치는 확대율이나 모니터 배율과 무관한 원본 이미지 좌표로 관리한다.
 public readonly record struct PixelPoint(double X,double Y);
 public readonly record struct PixelRect(int X,int Y,int Width,int Height)

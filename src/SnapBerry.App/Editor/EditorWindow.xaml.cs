@@ -43,7 +43,7 @@ public partial class EditorWindow : Window
     private readonly Func<int,bool> deleteConfirmation;
     private readonly Func<bool> showTrayNotice;private bool trayNoticeAcknowledged;
     private readonly Size preferredStartupSize;
-    public EditorWindow(CaptureLibraryStore library,SettingsService settingsStore,IExportPathPicker? picker=null,Func<int,bool>? confirmDelete=null,Func<bool>? confirmTrayHide=null,IImagePathPicker? imagePicker=null,IClipboardImageSource? clipboardImages=null,Func<string,string?>? editHistoryName=null,Action<ClipboardImageContent>? copyImage=null)
+    public EditorWindow(CaptureLibraryStore library,SettingsService settingsStore,IExportPathPicker? picker=null,Func<int,bool>? confirmDelete=null,Func<bool>? confirmTrayHide=null,IImagePathPicker? imagePicker=null,IClipboardImageSource? clipboardImages=null,Func<string,string?>? editHistoryName=null,Action<ClipboardImageContent>? copyImage=null,Func<BlankImageOptions?>? pickBlankImage=null)
     {
         store=library;settingsService=settingsStore;exportPicker=picker??new ExportPathPicker();writeClipboardImage=copyImage??(content=>Clipboard.SetDataObject(ClipboardImageSource.CreateDataObject(content),true));settings=settingsService.Load();InitializeComponent();
         ThemeResources.Initialize(this,settings.Theme);ThemeResources.ApplyToApplication(settings.Theme);
@@ -64,6 +64,7 @@ public partial class EditorWindow : Window
         canvas=new(){Model=Model};CanvasHost.Children.Add(canvas);HistoryList.ItemsSource=historyItems;InitializeRibbonIcons();InitializeLineStyleItems();UpdateCaptureTooltips();ImageScroll.PreviewMouseWheel+=ImageMouseWheel;
         imagePan=new(ImageScroll,()=>!busy&&Model.Document is not null,canvas.CancelGesture);
         InitializeImageImport(imagePicker??new ImagePathPicker(),clipboardImages??new ClipboardImageSource());
+        blankImagePicker=pickBlankImage??(()=>{var dialog=new BlankImageDialog{Owner=this,Icon=Icon};return dialog.ShowDialog()==true?dialog.Result:null;});
         foreach(var slider in new[]{ThicknessSlider,MosaicSlider})
         {slider.AddHandler(Thumb.DragStartedEvent,new DragStartedEventHandler(PropertyDragStarted));slider.AddHandler(Thumb.DragCompletedEvent,new DragCompletedEventHandler(PropertyDragCompleted));}
         autosave=new(store.SaveAsync);
@@ -558,6 +559,6 @@ public partial class EditorWindow : Window
         SettingsGroup.LargeImageSource=SettingsGroup.SmallImageSource=RibbonSettings.LargeImageSource;
         PropertiesGroup.LargeImageSource=PropertiesGroup.SmallImageSource=RibbonIcons.Create("Properties",settings.Theme);
         foreach(var button in ToolsPanel.Items.OfType<RibbonToggleButton>())button.LargeImageSource=button.SmallImageSource=RibbonIcons.Create((string)button.Tag,settings.Theme);
-        foreach(var (button,name) in new[]{(OpenImageButton,"ImageFile"),(PasteImageButton,"Paste"),(RegionCaptureButton,"Region"),(WindowCaptureButton,"Window"),(DesktopCaptureButton,"Desktop"),(UndoButton,"Undo"),(RedoButton,"Redo"),(DeleteButton,"Delete"),(EditButton,"Edit"),(CopyButton,"Copy"),(SaveButton,"Save"),(RibbonZoomOut,"ZoomOut"),(RibbonZoomIn,"ZoomIn"),(RibbonFit,"Fit"),(RibbonHistory,"History")})button.LargeImageSource=button.SmallImageSource=RibbonIcons.Create(name,settings.Theme);
+        foreach(var (button,name) in new[]{(NewBlankImageButton,"NewBlank"),(OpenImageButton,"ImageFile"),(PasteImageButton,"Paste"),(RegionCaptureButton,"Region"),(WindowCaptureButton,"Window"),(DesktopCaptureButton,"Desktop"),(UndoButton,"Undo"),(RedoButton,"Redo"),(DeleteButton,"Delete"),(EditButton,"Edit"),(CopyButton,"Copy"),(SaveButton,"Save"),(RibbonZoomOut,"ZoomOut"),(RibbonZoomIn,"ZoomIn"),(RibbonFit,"Fit"),(RibbonHistory,"History")})button.LargeImageSource=button.SmallImageSource=RibbonIcons.Create(name,settings.Theme);
     }
 }

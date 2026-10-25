@@ -42,6 +42,7 @@
    <r:Ribbon.ApplicationMenu><r:RibbonApplicationMenu Visibility="Collapsed"/></r:Ribbon.ApplicationMenu>
    <r:RibbonTab Header="홈">
     <editor:ThemedRibbonGroup Header="이미지">
+     <r:RibbonButton x:Name="NewBlankImageButton" Label="빈 화면 만들기" ToolTip="크기와 배경을 지정해 빈 화면 만들기 (Ctrl+N)" Command="{x:Static ApplicationCommands.New}"/>
      <r:RibbonButton x:Name="OpenImageButton" Label="이미지 열기" ToolTip="이미지 열기 (Ctrl+O)" Command="{x:Static ApplicationCommands.Open}"/>
      <r:RibbonButton x:Name="PasteImageButton" Label="이미지 붙여넣기" ToolTip="현재 이미지 위에 붙여넣기 (Ctrl+V). 이미지가 없으면 새로 엽니다." Command="{x:Static ApplicationCommands.Paste}"/>
     </editor:ThemedRibbonGroup>
@@ -142,7 +143,7 @@
       <Button x:Name="EmptyRegionCaptureButton" Tag="Region" Click="CaptureClick" HorizontalAlignment="Left" Height="38" MinWidth="130" Margin="0,14,0,0" Padding="12,4" Background="{DynamicResource Theme.Hover}" BorderBrush="{DynamicResource Theme.Accent}" Foreground="{DynamicResource Theme.AccentText}" ToolTip="영역을 선택해 새 캡처 시작"><StackPanel Orientation="Horizontal"><Image Width="20" Height="20" Source="{Binding SmallImageSource,ElementName=RegionCaptureButton}" Margin="0,0,8,0"/><TextBlock Text="영역 캡처" FontSize="14" VerticalAlignment="Center"/></StackPanel></Button>
       <TextBlock Text="이전 캡처 편집하기" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource Theme.Accent}" Margin="0,20,0,6"/>
       <TextBlock x:Name="EmptyHistoryHint" Text="왼쪽 캡처 이력에서 이미지를 클릭하면 다시 편집할 수 있습니다." FontSize="14" Foreground="{DynamicResource Theme.SecondaryText}" TextWrapping="Wrap" LineHeight="23"/>
-      <TextBlock Text="기존 이미지는 상단의 이미지 열기(Ctrl+O) 또는 이미지 붙여넣기(Ctrl+V)로 편집할 수 있습니다." FontSize="14" Foreground="{DynamicResource Theme.SecondaryText}" TextWrapping="Wrap" LineHeight="23" Margin="0,20,0,0"/>
+      <TextBlock Text="상단의 빈 화면 만들기(Ctrl+N)로 새 캔버스를 만들 수 있습니다. 기존 이미지는 이미지 열기(Ctrl+O) 또는 이미지 붙여넣기(Ctrl+V)로 편집할 수 있습니다." FontSize="14" Foreground="{DynamicResource Theme.SecondaryText}" TextWrapping="Wrap" LineHeight="23" Margin="0,20,0,0"/>
      </StackPanel>
     </ScrollViewer></Grid>
     <Button x:Name="HistoryToggleButton" HorizontalAlignment="Left" VerticalAlignment="Top" ToolTip="이력 목록 접기 또는 펼치기" Margin="4" Click="ToggleHistoryClick"><Image Width="20" Height="20" Source="{Binding SmallImageSource,ElementName=RibbonHistory}"/></Button></Grid>

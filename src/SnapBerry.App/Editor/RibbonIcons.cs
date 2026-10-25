@@ -26,6 +26,9 @@ public static class RibbonIcons
             {var t=new FormattedText(text,CultureInfo.InvariantCulture,FlowDirection.LeftToRight,new Typeface(new FontFamily("Segoe UI"),FontStyles.Normal,FontWeights.Bold,FontStretches.Normal),size,color,1);dc.DrawText(t,new Point(bounds.X+(bounds.Width-t.Width)/2,bounds.Y+(bounds.Height-t.Height)/2));}
             switch(name)
             {
+                case "NewBlank":
+                    Shape("M6,2 L20,2 L27,9 L27,30 L6,30 Z",Paper);Shape("M20,2 L20,9 L27,9",Paper);
+                    Line(11,20,23,20,Berry,3);Line(17,14,17,26,Berry,3);break;
                 case "ImageFile":
                     Box(3,6,26,23,Yellow,2);dc.DrawRectangle(Paper,Pen(Ink),new Rect(8,3,20,20));
                     Circle(22,8,2,Berry);Shape("M9,21 L15,12 L20,17 L24,12 L27,21 Z",Berry);break;

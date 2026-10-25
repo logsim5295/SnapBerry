@@ -53,8 +53,9 @@ public sealed class EditorCanvas : FrameworkElement
     }
     protected override void OnRender(DrawingContext dc)
     {
-        // 선택 테두리와 조절점은 편집용 장식이므로 합성 이미지나 PNG에는 포함하지 않는다.
-        base.OnRender(dc);dc.DrawRectangle(Model.Document?.BackgroundAssetHash is null?Brushes.White:checker,null,new Rect(RenderSize));if(Model.Document is null)return;
+        // 체크무늬·선택 테두리·조절점은 편집용 장식이므로 합성 이미지나 PNG에는 포함하지 않는다.
+        // 원본부터 투명한 빈 화면과 가져온 PNG도 같은 배경 위에 표시한다. 불투명 픽셀은 체크무늬를 덮는다.
+        base.OnRender(dc);dc.DrawRectangle(Model.Document is null?Brushes.White:checker,null,new Rect(RenderSize));if(Model.Document is null)return;
         dc.PushTransform(new ScaleTransform(Model.Zoom*ScaleX,Model.Zoom*ScaleY));
         var image=Model.Composite();
         if(preview is not null&&Model.Background is not null)

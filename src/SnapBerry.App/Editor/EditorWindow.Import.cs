@@ -14,11 +14,14 @@ public partial class EditorWindow
 {
     private IImagePathPicker imagePicker=null!;
     private IClipboardImageSource clipboardImages=null!;
+    private Func<BlankImageOptions?> blankImagePicker=null!;
     private void InitializeImageImport(IImagePathPicker picker,IClipboardImageSource clipboard)
     {
         imagePicker=picker;clipboardImages=clipboard;
         // 리본 그룹이 팝업으로 접혀도 명령은 편집 창에서 실행한다.
         OpenImageButton.CommandTarget=PasteImageButton.CommandTarget=this;
+        NewBlankImageButton.CommandTarget=this;
+        CommandBindings.Add(new CommandBinding(ApplicationCommands.New,async(_,_)=>await SafeAsync(CreateBlankImageAsync),(_,e)=>{e.CanExecute=!busy;e.Handled=true;}));
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Open,async(_,_)=>await SafeAsync(OpenImageAsync),(_,e)=>{e.CanExecute=!busy;e.Handled=true;}));
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Paste,async(_,_)=>await SafeAsync(PasteImageAsync),CanPasteImageCommand));
         CommandBindings.Add(new CommandBinding(ApplicationCommands.Copy,CopyImageCommandExecuted,CanCopyImageCommand));
@@ -34,6 +37,11 @@ public partial class EditorWindow
             if(node is TextBoxBase or PasswordBox or ComboBox{IsEditable:true})return true;
         return false;
     }
+    public Task CreateBlankImageAsync()=>ImportImageAsync(async()=>
+    {
+        var options=blankImagePicker();
+        return(options is null?null:await Task.Run(()=>BlankImageService.Create(options)),null);
+    },"빈 화면 생성됨");
     public Task OpenImageAsync()=>ImportImageAsync(async()=>
     {
         var path=imagePicker.Pick(this);return(path is null?null:await ImageImportService.FromFileAsync(path),null);
