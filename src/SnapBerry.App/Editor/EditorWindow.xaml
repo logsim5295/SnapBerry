@@ -73,7 +73,7 @@
         <TextBlock Text="색상 범위" VerticalAlignment="Center"/><Slider x:Name="MagicWandTolerance" Minimum="0" Maximum="100" Value="15" Width="60" Height="20" Margin="4,0,0,0" TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PurpleSliderStyle}" ValueChanged="MagicWandOptionsChanged" ToolTip="높일수록 비슷한 색까지 함께 선택합니다." AutomationProperties.Name="색상 범위"/><TextBlock Text="{Binding Value, ElementName=MagicWandTolerance, StringFormat={}{0:0}%}" VerticalAlignment="Center" Margin="4,0"/>
        </StackPanel>
        <CheckBox x:Name="MagicWandGlobal" Content="비슷한 색 모두 선택" Margin="0,2" Checked="MagicWandOptionsChanged" Unchecked="MagicWandOptionsChanged"/>
-       <Button x:Name="DeleteMagicWandButton" Content="선택 지우기" Height="24" Margin="0" HorizontalAlignment="Left" Click="DeleteMagicWandClick" ToolTip="선택한 픽셀을 투명하게 지웁니다. Delete 키도 사용할 수 있습니다."/>
+       <Button x:Name="DeleteMagicWandButton" Content="선택 영역 지우기" Height="24" Margin="0" HorizontalAlignment="Left" Click="DeleteMagicWandClick" ToolTip="선택한 픽셀을 투명하게 지웁니다. Delete 키도 사용할 수 있습니다."/>
       </StackPanel>
       <StackPanel x:Name="CurrentColorControls" Orientation="Horizontal" VerticalAlignment="Center">
        <r:RibbonMenuButton x:Name="ColorMenuButton" Label="색상" Height="32" ControlSizeDefinition="{StaticResource CompactPropertySize}" ToolTip="색상 선택" KeyTip="C">
