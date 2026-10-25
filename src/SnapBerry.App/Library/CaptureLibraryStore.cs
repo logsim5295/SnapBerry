@@ -51,6 +51,7 @@ public sealed class CaptureLibraryStore(string directory)
                     foreach(var hash in hashes)Write(zip,$"assets/{hash}.png",record.StickerAssets[hash]);
                 }
                 File.Move(temp,target,true);
+                DeleteThumbnail(record.Id);
                 CacheMetadata(target,ListItem(record));
             }
             finally{if(File.Exists(temp))File.Delete(temp);}
@@ -96,7 +97,57 @@ public sealed class CaptureLibraryStore(string directory)
             return items.Where(x=>search.Length==0||x.Caption.Contains(search,StringComparison.OrdinalIgnoreCase)).OrderByDescending(x=>x.CapturedAtUtc).ThenBy(x=>x.Id).Skip(Math.Max(0,offset)).Take(Math.Clamp(limit,1,50)).ToArray();
         }
     });
-    public Task DeleteAsync(Guid id)=>Task.Run(()=>{lock(gate){File.Delete(PathFor(id));metadata.Remove(id);}});
+    public Task DeleteAsync(Guid id)=>Task.Run(()=>{lock(gate){File.Delete(PathFor(id));metadata.Remove(id);DeleteThumbnail(id);}});
+    // 원본과 별도로 보관하는 재생성 가능한 WPF 썸네일이다. 파일 크기·수정 시각과
+    // 조회 revision을 함께 검사하여 재시작 후 재사용과 저장 중 오래된 결과 차단을 모두 보장한다.
+    private string ThumbnailPath(Guid id)=>Path.Combine(directory,"thumbnails-wpf-v1",id.ToString("N")+".thumb");
+    private CachedMetadata? CurrentMetadata(CaptureListItem item)
+    {
+        if(item.Damaged||!metadata.TryGetValue(item.Id,out var cached)||cached.Item.Revision!=item.Revision)return null;
+        var file=new FileInfo(PathFor(item.Id));
+        return file.Exists&&file.Length==cached.Length&&file.LastWriteTimeUtc==cached.LastWriteUtc?cached:null;
+    }
+    private void DeleteThumbnail(Guid id)
+    {try{File.Delete(ThumbnailPath(id));}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}
+    public Task<byte[]?> LoadThumbnailAsync(CaptureListItem item)=>Task.Run<byte[]?>(()=>
+    {
+        lock(gate)
+        {
+            try
+            {
+                var current=CurrentMetadata(item);if(current is null)return null;
+                var path=ThumbnailPath(item.Id);var file=new FileInfo(path);
+                if(!file.Exists||file.Length<=16||file.Length>256*1024)return null;
+                var bytes=File.ReadAllBytes(path);
+                if(BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(0,8))!=current.Length||BinaryPrimitives.ReadInt64LittleEndian(bytes.AsSpan(8,8))!=current.LastWriteUtc.Ticks)return null;
+                var png=bytes[16..];ValidateThumbnail(png);return png;
+            }
+            catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException){return null;}
+        }
+    });
+    public Task SaveThumbnailAsync(CaptureListItem item,byte[] png)=>Task.Run(()=>
+    {
+        lock(gate)
+        {
+            string? temp=null;
+            try
+            {
+                var current=CurrentMetadata(item);if(current is null)return;ValidateThumbnail(png);
+                var path=ThumbnailPath(item.Id);Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                var bytes=new byte[16+png.Length];BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(0,8),current.Length);
+                BinaryPrimitives.WriteInt64LittleEndian(bytes.AsSpan(8,8),current.LastWriteUtc.Ticks);png.CopyTo(bytes,16);
+                temp=path+"."+Guid.NewGuid().ToString("N")+".tmp";File.WriteAllBytes(temp,bytes);File.Move(temp,path,true);
+            }
+            catch(Exception e)when(e is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException){}
+            finally{if(temp is not null)try{File.Delete(temp);}catch(Exception e)when(e is IOException or UnauthorizedAccessException){}}
+        }
+    });
+    private static void ValidateThumbnail(byte[] png)
+    {
+        if(png.Length>256*1024-16)throw new InvalidDataException("Thumbnail exceeds limits.");
+        ValidatePng(png);
+        if(BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16,4))>120||BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20,4))>120)throw new InvalidDataException("Thumbnail dimensions exceed limits.");
+    }
     private static void Write(ZipArchive zip,string name,byte[] bytes){using var stream=zip.CreateEntry(name,CompressionLevel.Fastest).Open();stream.Write(bytes);}
     // 압축 해제 전후 크기를 모두 제한하여 과도한 메모리 할당을 방지한다.
     private static byte[] Read(ZipArchive zip,string name,int limit)

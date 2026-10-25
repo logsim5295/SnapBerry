@@ -83,6 +83,36 @@ public class HistoryDefaultSelectionTests
         Assert.Equal(40,window.Model.Original!.PixelWidth);
     }));
 
+    [Fact] public void HistoryRowsAppearBeforeThumbnailsAreReady()=>Sta.Run(()=>WithHistory(3,(window,_,records,_)=>
+    {
+        var missingPreview=false;
+        ((System.Collections.Specialized.INotifyCollectionChanged)List(window).ItemsSource).CollectionChanged+=(_,e)=>
+        {
+            if(e.NewItems is null)return;
+            foreach(CaptureEntry row in e.NewItems)missingPreview|=row.Thumbnail is null;
+        };
+        Refresh(window);
+        Assert.True(missingPreview,"Rows must be published before rendering their thumbnails.");
+        Assert.Equal(3,List(window).Items.Count);
+        AssertSelected(window,records[0].Id);
+    }));
+
+    [Fact] public void ThumbnailsFillExistingRowsWithoutChangingSelection()=>Sta.Run(()=>WithHistory(3,(window,_,records,_)=>
+    {
+        // 기본 문서의 자동 저장 없이 목록 및 썸네일 갱신만 검증한다.
+        window.SetBusy(true);Refresh(window);window.SetBusy(false);
+        var rows=List(window).Items.Cast<CaptureEntry>().ToArray();Select(window,records[1].Id);
+        var notifications=0;
+        foreach(var row in rows)((System.ComponentModel.INotifyPropertyChanged)row).PropertyChanged+=(_,e)=>
+        {if(e.PropertyName==nameof(CaptureEntry.Thumbnail))notifications++;};
+        var image=new Image();image.SetBinding(Image.SourceProperty,new System.Windows.Data.Binding(nameof(CaptureEntry.Thumbnail)){Source=rows[0]});
+        Pump(((Task)typeof(EditorWindow).GetField("thumbnailRefresh",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(window)!).WaitAsync(TimeSpan.FromSeconds(15)));
+        Assert.Equal(3,notifications);Assert.Same(rows[0].Thumbnail,image.Source);
+        Assert.All(rows,row=>{Assert.NotNull(row.Thumbnail);Assert.True(row.Thumbnail.IsFrozen);});
+        Assert.Equal(rows,List(window).Items.Cast<CaptureEntry>());
+        Assert.Same(rows[1],List(window).SelectedItem);Assert.False(window.IsVisible);
+    }));
+
     [Fact] public void EmptyHistoryLeavesEditorEmpty()=>Sta.Run(()=>WithHistory(0,(window,_,_,_)=>
     {
         Refresh(window);Assert.Null(window.Model.CaptureId);Assert.Empty(List(window).Items);

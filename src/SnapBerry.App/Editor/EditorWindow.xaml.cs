@@ -17,8 +17,14 @@ using SnapBerry.App.Rendering;
 using SnapBerry.App.Import;
 namespace SnapBerry.App.Editor;
 // 목록 메타데이터에 표시용 썸네일을 결합한다. 실제 편집 데이터는 열 때 저장소에서 읽는다.
-public sealed record CaptureEntry(CaptureListItem Item,BitmapSource? Thumbnail)
-{public string Caption=>Item.Caption;public string Dimensions=>Item.Dimensions;public string Details=>Item.Details;}
+public sealed class CaptureEntry(CaptureListItem item,BitmapSource? thumbnail):INotifyPropertyChanged
+{
+    public CaptureListItem Item {get;}=item;
+    public BitmapSource? Thumbnail {get;private set;}=thumbnail;
+    public string Caption=>Item.Caption;public string Dimensions=>Item.Dimensions;public string Details=>Item.Details;
+    public event PropertyChangedEventHandler? PropertyChanged;
+    internal void SetThumbnail(BitmapSource value){Thumbnail=value;PropertyChanged?.Invoke(this,new(nameof(Thumbnail)));}
+}
 // 리본·속성 패널·이력·캔버스를 조정하는 화면 계층이다. 편집 상태 자체는 Model에 위임한다.
 public partial class EditorWindow : Window
 {
@@ -31,6 +37,9 @@ public partial class EditorWindow : Window
     private double historyWidth=230;
     private bool hasMoreHistory;private ScrollViewer? historyScroll;
     private Task? libraryRefresh;private bool refreshRequested;private Guid? selectAfterRefresh;
+    private readonly HistoryThumbnailLoader thumbnailLoader;
+    private CancellationTokenSource? thumbnailCancellation;
+    private Task thumbnailRefresh=Task.CompletedTask;
     private bool restoreHistoryFocusAfterBusy;
     private CommandHistory? propertyDragHistory;
     private (EditorTool Tool,Guid? Selection)? propertiesContext;
@@ -45,7 +54,7 @@ public partial class EditorWindow : Window
     private readonly Size preferredStartupSize;
     public EditorWindow(CaptureLibraryStore library,SettingsService settingsStore,IExportPathPicker? picker=null,Func<int,bool>? confirmDelete=null,Func<bool>? confirmTrayHide=null,IImagePathPicker? imagePicker=null,IClipboardImageSource? clipboardImages=null,Func<string,string?>? editHistoryName=null,Action<ClipboardImageContent>? copyImage=null,Func<BlankImageOptions?>? pickBlankImage=null)
     {
-        store=library;settingsService=settingsStore;exportPicker=picker??new ExportPathPicker();writeClipboardImage=copyImage??(content=>Clipboard.SetDataObject(ClipboardImageSource.CreateDataObject(content),true));settings=settingsService.Load();InitializeComponent();
+        store=library;thumbnailLoader=new(store);settingsService=settingsStore;exportPicker=picker??new ExportPathPicker();writeClipboardImage=copyImage??(content=>Clipboard.SetDataObject(ClipboardImageSource.CreateDataObject(content),true));settings=settingsService.Load();InitializeComponent();
         ThemeResources.Initialize(this,settings.Theme);ThemeResources.ApplyToApplication(settings.Theme);
         deleteConfirmation=confirmDelete??(count=>new DeleteCaptureDialog(count){Owner=this,Icon=Icon}.ShowDialog()==true);
         historyNameEditor=editHistoryName??(value=>{var dialog=new TextAnnotationEditor(value,false,CaptureName.MaxLength,"이력 이름 변경",true){Owner=this,Icon=Icon};return dialog.ShowDialog()==true?dialog.Value:null;});
@@ -146,7 +155,8 @@ public partial class EditorWindow : Window
     private Task RefreshLibraryAsync()
     {
         // 진행 중인 목록 갱신도 기다린다. 겹친 요청은 마지막 상태로 한 번 더 읽어 반영한다.
-        refreshRequested=true;if(refreshing)return libraryRefresh!;
+        if(allowClose)return Task.CompletedTask;
+        CancelThumbnailRefresh();refreshRequested=true;if(refreshing)return libraryRefresh!;
         refreshing=true;return libraryRefresh=RefreshLibraryLoopAsync();
     }
     private async Task RefreshLibraryLoopAsync()
@@ -167,16 +177,12 @@ public partial class EditorWindow : Window
                 var entries=await store.ListAsync(page*50,50,query);if(version!=historySearchVersion)return;lastPageCount=entries.Count;foreach(var entry in entries)
                 {
                     if(version!=historySearchVersion)return;
-                    BitmapSource? thumbnail=null;
-                    if(entry.Id==Model.CaptureId&&Model.Composite() is BitmapSource image)thumbnail=ThumbnailRenderer.Create(image);
-                    else if(old.TryGetValue(entry.Id,out var cached)&&cached.Item==entry)thumbnail=cached.Thumbnail;
-                    else if(!entry.Damaged)
-                    {try{var record=await store.LoadAsync(entry.Id);if(version!=historySearchVersion)return;var vm=new EditorViewModel();vm.Open(record);thumbnail=ThumbnailRenderer.Create(vm.Composite()!);}catch(Exception e)when(e is IOException or InvalidDataException or ArgumentException){}}
+                    var thumbnail=old.TryGetValue(entry.Id,out var cached)&&cached.Item==entry?cached.Thumbnail:null;
                     items.Add(new(entry,thumbnail));
                 }
                 if(entries.Count<50)break;
             }
-            if(version!=historySearchVersion)return;
+            if(allowClose||version!=historySearchVersion)return;
             // 디스크를 읽는 동안 사용자가 바꾼 선택도 마지막 시점의 값으로 보존한다.
             var selected=HistoryList.SelectedItems.Cast<CaptureEntry>().Select(x=>x.Item.Id).ToHashSet();
             if(selectAfterRefresh is Guid target)selected=[target];
@@ -187,14 +193,44 @@ public partial class EditorWindow : Window
             HistoryEmptyText.Visibility=items.Count==0?Visibility.Visible:Visibility.Collapsed;
             hasMoreHistory=lastPageCount==50;historyScroll?.ScrollToVerticalOffset(offset);
             if(restoreHistoryFocus)RestoreHistoryFocus();
-            // 아직 문서와 선택이 없으면 최신의 열 수 있는 캡처를 기본으로 표시한다.
-            if(!busy&&Model.CaptureId is null&&selected.Count==0&&selectAfterRefresh is null&&query.Length==0
-                &&items.FirstOrDefault(x=>!x.Item.Damaged&&x.Thumbnail is not null) is CaptureEntry latest)
+            // 목록을 먼저 게시한다. 기본 문서 선택도 썸네일 생성 완료를 기다리지 않는다.
+            if(!busy&&Model.CaptureId is null&&selected.Count==0&&selectAfterRefresh is null&&query.Length==0)
             {
-                SetBusy(true);try{await SelectHistoryEntryAsync(latest);}finally{SetBusy(false);}
+                SetBusy(true);try{await SelectFirstReadableHistoryAsync(items,version);}finally{SetBusy(false);}
             }
+            if(allowClose||version!=historySearchVersion||refreshRequested)return;
+            thumbnailCancellation=new();thumbnailRefresh=FillHistoryThumbnailsAsync(items,thumbnailCancellation.Token);
         }
         catch(Exception e){StatusText.Text="이력 목록: "+e.Message;}
+    }
+    private void CancelThumbnailRefresh()
+    {thumbnailCancellation?.Cancel();thumbnailCancellation?.Dispose();thumbnailCancellation=null;}
+    private async Task FillHistoryThumbnailsAsync(IReadOnlyList<CaptureEntry> items,CancellationToken cancellation)
+    {
+        // 바인딩과 첫 화면 그리기에 먼저 기회를 주고 이후 각 행의 이미지만 갱신한다.
+        await System.Windows.Threading.Dispatcher.Yield(System.Windows.Threading.DispatcherPriority.Background);
+        foreach(var entry in items)
+        {
+            if(cancellation.IsCancellationRequested)return;
+            if(entry.Item.Damaged||entry.Thumbnail is not null)continue;
+            try
+            {
+                var thumbnail=await thumbnailLoader.LoadAsync(entry.Item,cancellation);
+                if(cancellation.IsCancellationRequested)return;
+                entry.SetThumbnail(thumbnail);
+            }
+            catch(OperationCanceledException){return;}
+            catch(Exception e)when(e is IOException or InvalidDataException or FormatException or ArgumentException or UnauthorizedAccessException or NotSupportedException or System.Runtime.InteropServices.COMException){}
+        }
+    }
+    private async Task SelectFirstReadableHistoryAsync(IEnumerable<CaptureEntry> entries,int version)
+    {
+        foreach(var entry in entries.Where(x=>!x.Item.Damaged).ToArray())
+        {
+            if(allowClose||version!=historySearchVersion)return;
+            try{await SelectHistoryEntryAsync(entry);return;}
+            catch(Exception e)when(e is IOException or InvalidDataException or FormatException or ArgumentException or UnauthorizedAccessException or NotSupportedException){}
+        }
     }
     private void UpdateCommands()
     {
@@ -454,8 +490,7 @@ public partial class EditorWindow : Window
             {
                 // 삭제 전 위치 다음의 생존 항목을 열고, 끝에 도달하면 가까운 이전 항목으로 이동한다.
                 var index=preceding.Count(id=>!deleted.Contains(id));
-                var next=historyItems.Skip(index).Concat(historyItems.Take(index).Reverse()).FirstOrDefault(x=>!x.Item.Damaged&&x.Thumbnail is not null);
-                if(next is not null)await SelectHistoryEntryAsync(next);
+                await SelectFirstReadableHistoryAsync(historyItems.Skip(index).Concat(historyItems.Take(index).Reverse()),historySearchVersion);
             }
             StatusText.Text=failed.Count==0?"이력 삭제됨":$"삭제 실패 {failed.Count}개: {failed[0]}";
         }
@@ -540,7 +575,7 @@ public partial class EditorWindow : Window
         }
         Hide();
     }
-    public void CloseForExit(){Model.ClearMagicWand();EndPropertyDrag();SaveHistoryWidth();CloseStickerPicker();allowClose=true;autosave.Dispose();Close();}
+    public void CloseForExit(){Model.ClearMagicWand();EndPropertyDrag();SaveHistoryWidth();CloseStickerPicker();allowClose=true;CancelThumbnailRefresh();thumbnailLoader.Dispose();autosave.Dispose();Close();}
     public void ReloadSettings(){settings=settingsService.Load();ThemeResources.Apply(this,settings.Theme);ThemeResources.ApplyToApplication(settings.Theme);InitializeRibbonIcons();UpdateCaptureTooltips();}
     private void UpdateCaptureTooltips()
     {
