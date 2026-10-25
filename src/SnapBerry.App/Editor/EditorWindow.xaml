@@ -58,7 +58,7 @@
      <r:RibbonToggleButton Label="모자이크" Tag="Mosaic" ToolTip="모자이크" Click="ToolClick"/>
      <r:RibbonToggleButton Label="번호" Tag="Number" ToolTip="번호" Click="ToolClick"/>
      <r:RibbonToggleButton Label="스티커" Tag="Sticker" ToolTip="스티커" Click="ToolClick"/>
-     <r:RibbonToggleButton x:Name="MagicWandButton" Label="배경 지우개" Tag="MagicWand" ToolTip="색상을 클릭해 선택하고 Delete로 지웁니다. 허용 오차와 전체 색상 선택을 조절할 수 있습니다." Click="ToolClick"/>
+     <r:RibbonToggleButton x:Name="MagicWandButton" Label="배경 지우개" Tag="MagicWand" ToolTip="색상을 클릭해 선택하고 Delete로 지웁니다. 색상 범위와 전체 색상 선택을 조절할 수 있습니다." Click="ToolClick"/>
      <r:RibbonToggleButton Label="자르기" Tag="Crop" ToolTip="이미지 모서리를 드래그하여 자르기" Click="ToolClick"/>
     </editor:ThemedRibbonGroup>
     <!-- 속성은 리본 안에 배치한다. 좁은 창에서는 리본 그룹의 기본 접힘 메뉴로 접근한다. -->
@@ -70,7 +70,7 @@
      <WrapPanel x:Name="PropertiesPanel" MaxWidth="210" HorizontalAlignment="Left" Orientation="Horizontal" VerticalAlignment="Center" Margin="3,0">
       <StackPanel x:Name="MagicWandControls" Visibility="Collapsed" MaxWidth="156">
        <StackPanel Orientation="Horizontal" Height="20">
-        <TextBlock Text="허용 오차" VerticalAlignment="Center"/><Slider x:Name="MagicWandTolerance" Minimum="0" Maximum="100" Value="15" Width="60" Height="20" Margin="4,0,0,0" TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PurpleSliderStyle}" ValueChanged="MagicWandOptionsChanged" ToolTip="높일수록 더 넓은 색상 범위를 선택합니다." AutomationProperties.Name="허용 오차"/><TextBlock Text="{Binding Value, ElementName=MagicWandTolerance, StringFormat={}{0:0}%}" VerticalAlignment="Center" Margin="4,0"/>
+        <TextBlock Text="색상 범위" VerticalAlignment="Center"/><Slider x:Name="MagicWandTolerance" Minimum="0" Maximum="100" Value="15" Width="60" Height="20" Margin="4,0,0,0" TickFrequency="1" IsSnapToTickEnabled="True" Style="{StaticResource PurpleSliderStyle}" ValueChanged="MagicWandOptionsChanged" ToolTip="높일수록 비슷한 색까지 함께 선택합니다." AutomationProperties.Name="색상 범위"/><TextBlock Text="{Binding Value, ElementName=MagicWandTolerance, StringFormat={}{0:0}%}" VerticalAlignment="Center" Margin="4,0"/>
        </StackPanel>
        <CheckBox x:Name="MagicWandGlobal" Content="전체 색상 선택" Margin="0,2" Checked="MagicWandOptionsChanged" Unchecked="MagicWandOptionsChanged"/>
        <Button x:Name="DeleteMagicWandButton" Content="선택 지우기" Height="24" Margin="0" HorizontalAlignment="Left" Click="DeleteMagicWandClick" ToolTip="선택한 픽셀을 투명하게 지웁니다. Delete 키도 사용할 수 있습니다."/>

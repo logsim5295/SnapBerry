@@ -78,7 +78,7 @@ public class PropertiesBarLayoutTests
                     {
                         var control=(FrameworkElement)window.FindName(name);
                         var bounds=new Rect(control.TranslatePoint(new Point(),properties),control.RenderSize);
-                        Assert.True(new Rect(properties.RenderSize).Contains(bounds),$"{name} 컨트롤은 허용 오차 {value}%에서도 잘리지 않아야 합니다.");
+                        Assert.True(new Rect(properties.RenderSize).Contains(bounds),$"{name} 컨트롤은 색상 범위 {value}%에서도 잘리지 않아야 합니다.");
                     }
                 }
             }
