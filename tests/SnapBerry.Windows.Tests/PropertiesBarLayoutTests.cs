@@ -61,9 +61,26 @@ public class PropertiesBarLayoutTests
                 var group=Assert.IsAssignableFrom<RibbonGroup>(window.FindName("PropertiesGroup"));
                 Assert.Equal(tool is EditorTool.Select or EditorTool.Crop?Visibility.Collapsed:Visibility.Visible,group.Visibility);
                 if(group.Visibility==Visibility.Visible)Assert.True(group.ActualWidth>0,"리본 속성이 실제로 배치되어야 합니다.");
+                if(width==1240&&tool is (EditorTool.Arrow or EditorTool.Rectangle or EditorTool.MagicWand))
+                    Assert.False(group.IsCollapsed,$"{tool} 속성은 기본 창 너비에서 메뉴를 열지 않고 바로 보여야 합니다.");
                 if(width<=760&&group.Visibility==Visibility.Visible)Assert.True(group.IsCollapsed,"좁은 창에서는 속성 그룹을 접어 접근할 수 있어야 합니다.");
                 if(tool is EditorTool.Select or EditorTool.Crop)
                     Assert.All(properties is Panel panel?panel.Children.Cast<FrameworkElement>():[],child=>Assert.Equal(Visibility.Collapsed,child.Visibility));
+            }
+            if(width==1240)
+            {
+                var tolerance=(Slider)window.FindName("MagicWandTolerance");
+                foreach(var value in new[]{0,15,100})
+                {
+                    tolerance.Value=value;Assert.Equal(expected,Layout(EditorTool.MagicWand));
+                    Assert.False(((RibbonGroup)window.FindName("PropertiesGroup")).IsCollapsed);
+                    foreach(var name in new[]{"MagicWandControls","MagicWandTolerance","MagicWandGlobal","DeleteMagicWandButton"})
+                    {
+                        var control=(FrameworkElement)window.FindName(name);
+                        var bounds=new Rect(control.TranslatePoint(new Point(),properties),control.RenderSize);
+                        Assert.True(new Rect(properties.RenderSize).Contains(bounds),$"{name} 컨트롤은 허용 오차 {value}%에서도 잘리지 않아야 합니다.");
+                    }
+                }
             }
             foreach(var kind in new[]{AnnotationKind.Arrow,AnnotationKind.Text,AnnotationKind.Rectangle,AnnotationKind.Mosaic,AnnotationKind.StepMarker})
                 Assert.Equal(expected,Layout(EditorTool.Select,new(){Kind=kind,Text="sample"}));
@@ -72,7 +89,7 @@ public class PropertiesBarLayoutTests
             if(artifacts is not null)
             {
                 Directory.CreateDirectory(artifacts);
-                foreach(var tool in new[]{EditorTool.Select,EditorTool.Arrow,EditorTool.Mosaic,EditorTool.Number,EditorTool.Crop})
+                foreach(var tool in new[]{EditorTool.Select,EditorTool.Arrow,EditorTool.Rectangle,EditorTool.MagicWand,EditorTool.Mosaic,EditorTool.Number,EditorTool.Crop})
                 {
                     Layout(tool);var visual=new DrawingVisual();
                     using(var dc=visual.RenderOpen())dc.DrawRectangle(new VisualBrush(ribbon),null,new Rect(0,0,ribbon.ActualWidth,ribbon.ActualHeight));
