@@ -1,5 +1,24 @@
 # QuickCapture Verification
 
+## 대화상자 선택 실패 후속 수정 (2026-10-26)
+
+- 실행 환경의 창 메타데이터를 읽어, DWM이 숨긴 ClickToDo 전체 화면 창 두 개가 보이는 창보다 앞에서 선택되는 것을 확인했다. 최근 창 캡처 기록의 크기도 이 숨김 창의 크기와 일치했다. `DWMWA_CLOAKED`가 설정된 창을 후보에서 제외했고 실제 후보 목록에서 제거됨을 확인했다.
+- Thunderbird 메시지 필터 창은 UIA의 첫 번째 compositor 패널에 자식이 없었고, 실제 버튼이 가려짐 상태로 보고됐다. 원본 HWND의 MSAA hit-test를 추가해 버튼과 필터 행의 경계 및 부모 경로를 읽는 데 성공했다. 서로 다른 COM 프록시로 돌아오는 창 루트도 HWND와 역할로 인식한다.
+- 느린 접근성 조회가 결과를 잃고 반복되는 문제와 이전 캡처 세션의 완료 결과를 재사용하는 문제를 회귀 테스트로 수정했다. 세션 분리 수정은 독립 코드 리뷰로 재확인했다.
+- Windows 관련 헤드리스 테스트 56개, Core 54개, Desktop Headless 154개가 통과했다. Windows 필터는 아래 기존 필터에 `WindowCandidateTests`와 `AccessibleWindowProbeTests`를 추가했다. 일반 Release 솔루션 빌드는 경고·오류 0개이며 지정 Portable 게시가 완료됐다. 게시 전후 일반 Release App/Core DLL SHA-256은 동일했다.
+- `dotnet run --project tools/PortableVerification -- .`로 단일 EXE의 관리·네이티브 라이브러리 포함, 난독화 및 공개 API 보존, 기존 JSON 계약 왕복 검증을 통과했다. Portable 복원만을 위한 ILLink 잠금 항목은 소스에 남기지 않았다.
+- 실제 앱에 대해 수행한 검사는 창 목록과 접근성 좌표를 읽는 것뿐이다. SnapBerry 실행, 앱 활성화, 실제 화면 캡처는 하지 않았다. 메모장은 실행 중이지 않아 저장 대화상자를 직접 검증하지 않았으며, 두 앱에서 실제 테두리 및 클릭 캡처의 대화형 검증은 남아 있다.
+- 후속으로 사용자가 수정된 앱을 직접 실행해 캡처가 정상 동작함을 확인했다. 확인한 앱별 세부 범위는 별도로 보고되지 않았다.
+
+## Windows 창 내부 요소 캡처 (2026-10-26)
+
+- 원본 HWND를 기준으로 UI Automation과 네이티브 자식 창을 탐색한다. 가장 안쪽 요소를 기본 선택하고 휠로 부모/자식 영역을 선택한다. 조회 실패 시 네이티브 자식 창 또는 전체 창으로 돌아간다.
+- 새 헤드리스 테스트 16개를 포함한 Windows 관련 테스트 37개가 통과했다. 실행 필터: `FullyQualifiedName~WindowCaptureSelectionTests|FullyQualifiedName~WindowElementProbeTests|FullyQualifiedName~CaptureTests|FullyQualifiedName~CaptureSessionTests|FullyQualifiedName~CaptureCancellationTests|FullyQualifiedName~WindowTransitionScopeTests|FullyQualifiedName~CropTests`.
+- Core 전체 54개와 Avalonia Desktop 메모리 전용 Headless 테스트 전체 154개도 통과했다. Windows의 나머지 테스트에는 OS 창 표시와 실제 캡처가 포함되어 전체 솔루션 테스트는 실행하지 않았다.
+- 선택 경계 보정, 음수 화면 좌표, 부모/자식 선택, 초기 포인터, 늦은 응답/종료, 원자적 버튼, 숨긴 요소, 순환 트리 제한, MTA 조회, 실패·시간 초과·busy 상태 재시도를 검증했다. 별도 코드 리뷰의 두 지적은 회귀 테스트와 함께 수정했다.
+- `dotnet build SnapBerry.sln -c Release --no-restore`는 경고·오류 0개로 완료했다. 지정된 `dotnet publish src/SnapBerry.App/SnapBerry.App.csproj -c Release -p:PublishProfile=Portable`과 `dotnet run --project tools/PortableVerification -- .`도 통과했다. 게시 전후 일반 Release의 App/Core DLL SHA-256은 동일했다. Portable 복원 과정에서만 추가된 ILLink 잠금 항목은 소스 변경에 포함하지 않았다.
+- 앱 실행, OS 창 표시, 앱 활성화, 실제 화면 캡처는 하지 않았다. 실제 앱별 UIA 제공 범위, 혼합 DPI 및 여러 모니터에서의 테두리/휠/클릭은 대화형 검증이 남아 있다. macOS 캡처는 변경하지 않았다. 생성 EXE는 로컬에만 유지하며 커밋·푸시·릴리스 배포는 하지 않았다.
+
 이 문서의 `simlog1234/SnapBerry/actions/runs/...` 링크는 저장소 이전 전에 실행한 검증의 원래 주소다. 새 저장소를 별도로 생성했으므로 과거 실행 ID를 새 저장소 주소로 바꿔도 해당 기록으로 연결되지 않는다. 현재 검증은 [logsim5295/SnapBerry Actions](https://github.com/logsim5295/SnapBerry/actions/workflows/macos.yml)에서 확인하고, 다운로드에는 [macOS 안내](macos.md)를 따른다.
 
 ## GitHub Releases 전용 배포로 전환 (2026-10-23)
