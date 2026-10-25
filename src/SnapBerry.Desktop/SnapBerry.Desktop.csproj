@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <AssemblyName>SnapBerry.Desktop</AssemblyName>
     <Product>SnapBerry</Product>
-    <Version>1.1.2</Version>
+    <Version>1.1.3</Version>
     <RuntimeIdentifiers>win-x64;osx-arm64;osx-x64</RuntimeIdentifiers>
     <ApplicationIcon>../SnapBerry.App/Assets/App.ico</ApplicationIcon>
   </PropertyGroup>
