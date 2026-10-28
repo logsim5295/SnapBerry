@@ -6,12 +6,19 @@ namespace SnapBerry.App.Settings;
 internal sealed class PriorityHotkeyHook : IDisposable
 {
     private delegate IntPtr HookProc(int code,IntPtr message,IntPtr data);
-    private readonly HookProc callback;private readonly PriorityHotkeyRouter router;private readonly IntPtr window;private IntPtr handle;
-    internal PriorityHotkeyHook(IntPtr window,PriorityHotkeyRouter router)
+    private readonly HookProc callback;private readonly PriorityHotkeyRouter router=new();private readonly IntPtr window;private IntPtr handle;
+    private readonly KeyboardHookThread thread;
+    internal PriorityHotkeyHook(IntPtr window)
     {
-        this.window=window;this.router=router;callback=Callback;handle=SetWindowsHookEx(13,callback,GetModuleHandle(null),0);
-        if(handle==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error());
+        this.window=window;callback=Callback;
+        thread=new(()=>
+        {
+            handle=SetWindowsHookEx(13,callback,GetModuleHandle(null),0);
+            if(handle==IntPtr.Zero)throw new Win32Exception(Marshal.GetLastWin32Error());
+        },()=>{UnhookWindowsHookEx(handle);handle=IntPtr.Zero;GC.KeepAlive(callback);});
     }
+    internal void Add(int id,uint modifiers,uint key)=>thread.Invoke(()=>router.Add(id,modifiers,key));
+    internal void Remove(int id)=>thread.Invoke(()=>router.Remove(id));
     private IntPtr Callback(int code,IntPtr message,IntPtr data)
     {
         try
@@ -30,7 +37,7 @@ internal sealed class PriorityHotkeyHook : IDisposable
         return CallNextHookEx(handle,code,message,data);
     }
     private static bool Down(int key)=>(GetAsyncKeyState(key)&0x8000)!=0;
-    public void Dispose(){if(handle==IntPtr.Zero)return;UnhookWindowsHookEx(handle);handle=IntPtr.Zero;GC.KeepAlive(callback);}
+    public void Dispose()=>thread.Dispose();
     [DllImport("user32.dll",SetLastError=true)]private static extern IntPtr SetWindowsHookEx(int type,HookProc callback,IntPtr module,uint thread);
     [DllImport("user32.dll")]private static extern bool UnhookWindowsHookEx(IntPtr hook);
     [DllImport("user32.dll")]private static extern IntPtr CallNextHookEx(IntPtr hook,int code,IntPtr message,IntPtr data);

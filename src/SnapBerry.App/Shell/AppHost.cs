@@ -14,14 +14,16 @@ namespace SnapBerry.App.Shell;
 public sealed class AppHost : IDisposable
 {
     private readonly EditorWindow window;private readonly SettingsService settings;private readonly Forms.NotifyIcon tray;
+    private readonly StartupDiagnostics? diagnostics;
     private HotkeyService? hotkeys;private HwndSource? source;private readonly System.Drawing.Icon trayIcon;
     public AppHost(bool startInTray,StartupDiagnostics? diagnostics=null)
     {
+        this.diagnostics=diagnostics;
         diagnostics?.Write("editor.create.begin");
         settings=new(AppDataPaths.RootDirectory);window=new(new CaptureLibraryStore(AppDataPaths.LibraryDirectory),settings);
         diagnostics?.Write("editor.create.end");window.DiagnosticStage=stage=>diagnostics?.Write(stage);window.ContentRendered+=(_,_)=>diagnostics?.Write("editor.content.rendered");
         Application.Current.MainWindow=window;window.CaptureRequested=CaptureAsync;window.SettingsRequested=SettingsAsync;
-        window.SourceInitialized+=(_,_)=>{diagnostics?.Write("editor.source.begin");source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);source.AddHook(WndProc);hotkeys=new(new NativeHotkeyBackend(source.Handle));RegisterSettings(settings.Load());diagnostics?.Write("editor.source.end");};
+        window.SourceInitialized+=(_,_)=>{diagnostics?.Write("editor.source.begin");source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);source.AddHook(WndProc);hotkeys=new(new NativeHotkeyBackend(source.Handle,stage=>diagnostics?.Write(stage)));RegisterSettings(settings.Load());diagnostics?.Write("editor.source.end");};
         using(var stream=typeof(AppHost).Assembly.GetManifestResourceStream("SnapBerry.App.ico")!)
         using(var icon=new System.Drawing.Icon(stream))trayIcon=(System.Drawing.Icon)icon.Clone();
         tray=new(){Text="SnapBerry",Icon=trayIcon,Visible=true};
@@ -32,9 +34,9 @@ public sealed class AppHost : IDisposable
     }
     private void Show()=>InstanceActivation.Handle(window,InstanceActivation.Message);
     private IntPtr WndProc(IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam,ref bool handled)
-    {if(msg==InstanceActivation.Message){handled=true;if(!window.IsBusy)Show();return IntPtr.Zero;}if(msg==0x312&&hotkeys?.Resolve(wParam.ToInt32()) is CaptureMode mode){handled=true;_ = SafeCapture(mode);}return IntPtr.Zero;}
+    {if(msg==InstanceActivation.Message){handled=true;if(!window.IsBusy)Show();return IntPtr.Zero;}if(msg==0x312&&hotkeys?.Resolve(wParam.ToInt32()) is CaptureMode mode){handled=true;diagnostics?.Write($"hotkey.received id={wParam.ToInt32()} mode={mode} busy={window.IsBusy}");_ = SafeCapture(mode);}return IntPtr.Zero;}
     private async Task SafeCapture(CaptureMode mode)
-    {try{await CaptureAsync(mode);}catch(Exception e){Show();MessageBox.Show(window,e.Message,"SnapBerry",MessageBoxButton.OK,MessageBoxImage.Warning);}}
+    {try{await CaptureAsync(mode);}catch(Exception e){diagnostics?.Write($"capture.failed mode={mode}",e);Show();MessageBox.Show(window,e.Message,"SnapBerry",MessageBoxButton.OK,MessageBoxImage.Warning);}}
     private async Task CaptureAsync(CaptureMode mode)
     {
         if(window.IsBusy)return;
@@ -65,7 +67,7 @@ public sealed class AppHost : IDisposable
     private void RegisterSettings(AppSettings value)
     {
         var failures=new List<string>();foreach(var (mode,key) in new[]{(CaptureMode.Region,value.RegionKey),(CaptureMode.Window,value.WindowKey),(CaptureMode.Desktop,value.DesktopKey)})
-        {var result=hotkeys!.TryReplace(mode,key);if(!result.Success)failures.Add($"{key}: {result.Error}");}
+        {var result=hotkeys!.TryReplace(mode,key);diagnostics?.Write($"hotkey.binding mode={mode} binding={key} success={result.Success} error={result.Error}");if(!result.Success)failures.Add($"{key}: {result.Error}");}
         if(failures.Count>0)window.Dispatcher.BeginInvoke(()=>MessageBox.Show(window,string.Join(Environment.NewLine,failures),"단축키 설정",MessageBoxButton.OK,MessageBoxImage.Information));
     }
     private Task SettingsAsync()

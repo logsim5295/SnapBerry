@@ -17,9 +17,7 @@ public class FailureRecoveryTests
     {
         var selected=new TaskCompletionSource<CaptureFrame?>();var busy=false;
         var capture=AppHost.RunCaptureAsync(()=>selected.Task,_=>throw new Exception("열면 안 됩니다."),()=>throw new Exception("표시하면 안 됩니다."),value=>busy=value);
-        var ctor=typeof(CaptureCoordinator).Assembly.GetType("SnapBerry.App.Capture.CaptureOverlay")!.GetConstructor([typeof(PixelRect),typeof(System.Windows.Media.Imaging.BitmapSource),typeof(Action)]);
-        Assert.NotNull(ctor);
-        var overlay=(Window)ctor.Invoke([new PixelRect(0,0,40,30),RenderingTests.Image(40,30),(Action)(()=>selected.TrySetResult(null))]);
+        var overlay=new CaptureOverlay(new PixelRect(0,0,40,30),RenderingTests.Image(40,30),()=>selected.TrySetResult(null));
         try{Assert.True(busy);Assert.False(overlay.IsVisible);overlay.Close();Assert.True(capture.IsCompletedSuccessfully);Assert.False(busy);}
         finally{overlay.Close();}
     });
