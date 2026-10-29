@@ -20,6 +20,7 @@ public sealed class CaptureCoordinator
         var timer=new DispatcherTimer{Interval=TimeSpan.FromMilliseconds(75)};
         var probing=false;long queriedVersion=-1;
         void DrawSelection(){foreach(var overlay in windows)overlay.SetSelection(current);}
+        void DrawPointer(PixelPoint point){foreach(var overlay in windows)overlay.SetPointer(point);}
         void MoveWindowPointer(PixelPoint point)
         {
             if(selection is null||selection.Pointer==point)return;
@@ -62,11 +63,11 @@ public sealed class CaptureCoordinator
         foreach(var screen in System.Windows.Forms.Screen.AllScreens)
         {
             var b=screen.Bounds;var bounds=new PixelRect(b.X,b.Y,b.Width,b.Height);var crop=CaptureService.Crop(frame,bounds).Image;
-            CaptureOverlay window=null!;window=new CaptureOverlay(bounds,crop,()=>Finish(null,window),mode==CaptureMode.Window);windows.Add(window);
-            window.MouseLeftButtonDown+=(_,e)=>{var p=NativeMethods.Cursor();if(mode==CaptureMode.Window){MoveWindowPointer(p);Finish(current);e.Handled=true;return;}start=p;window.CaptureMouse();e.Handled=true;};
+            CaptureOverlay window=null!;window=new CaptureOverlay(bounds,crop,()=>Finish(null,window),mode==CaptureMode.Window,frame);windows.Add(window);
+            window.MouseLeftButtonDown+=(_,e)=>{var p=NativeMethods.Cursor();DrawPointer(p);if(mode==CaptureMode.Window){MoveWindowPointer(p);Finish(current);e.Handled=true;return;}start=p;window.CaptureMouse();e.Handled=true;};
             window.MouseMove+=(_,_)=>
             {
-                var p=NativeMethods.Cursor();if(mode==CaptureMode.Window){MoveWindowPointer(p);return;}
+                var p=NativeMethods.Cursor();DrawPointer(p);if(mode==CaptureMode.Window){MoveWindowPointer(p);return;}
                 else if(start is not null)current=PixelRect.FromPoints(start.Value,p);
                 DrawSelection();
             };
@@ -79,6 +80,7 @@ public sealed class CaptureCoordinator
             window.MouseLeftButtonUp+=(_,_)=>{if(mode==CaptureMode.Region&&start is not null){window.ReleaseMouseCapture();var selection=PixelRect.FromPoints(start.Value,NativeMethods.Cursor());if(selection.Width>0&&selection.Height>0)Finish(selection);else {start=null;current=null;foreach(var overlay in windows)overlay.SetSelection(null);}}};
             window.PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape)Finish(null);};window.Show();
         }
+        DrawPointer(NativeMethods.Cursor());
         if(selection is not null){MoveWindowPointer(NativeMethods.Cursor());timer.Start();}
         windows.FirstOrDefault()?.Activate();return source.Task;
     }
@@ -88,21 +90,26 @@ internal sealed class CaptureOverlay : Window
 {
     private readonly Canvas canvas=new();private readonly Border selection=new(){BorderBrush=Brushes.White,BorderThickness=new Thickness(2),Background=new SolidColorBrush(Color.FromArgb(20,255,255,255))};private readonly TextBlock size=new(){Foreground=Brushes.White,Background=Brushes.Black,Padding=new Thickness(5)};
     private readonly PixelRect bounds;
-    public CaptureOverlay(PixelRect screen,BitmapSource background,Action? cancel=null,bool windowSelection=false)
+    private readonly CapturePointerVisual pointer;
+    public CaptureOverlay(PixelRect screen,BitmapSource background,Action? cancel=null,bool windowSelection=false,CaptureFrame? frame=null)
     {
-        bounds=screen;WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;Topmost=true;Cursor=Cursors.Cross;Left=screen.X;Top=screen.Y;Width=screen.Width;Height=screen.Height;
+        bounds=screen;pointer=new CapturePointerVisual(screen,frame??new CaptureFrame(background,screen));WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;Topmost=true;Cursor=Cursors.None;Left=screen.X;Top=screen.Y;Width=screen.Width;Height=screen.Height;
         var grid=new Grid();grid.Children.Add(new Image{Source=background,Stretch=Stretch.Fill});grid.Children.Add(new Border{Background=new SolidColorBrush(Color.FromArgb(65,0,0,0)),IsHitTestVisible=false});grid.Children.Add(canvas);canvas.Background=Brushes.Transparent;canvas.Children.Add(selection);canvas.Children.Add(size);Content=grid;SetSelection(null);
         if(windowSelection)grid.Children.Add(new TextBlock{Text="클릭: 캡처  ·  휠 위/아래: 상위/하위 영역  ·  Esc: 취소",Foreground=Brushes.White,Background=Brushes.Black,Padding=new Thickness(12,8,12,8),Margin=new Thickness(12),HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Bottom,TextWrapping=TextWrapping.Wrap,IsHitTestVisible=false});
+        grid.Children.Add(pointer);
         SourceInitialized+=(_,_)=>NativeMethods.SetWindowPos(new WindowInteropHelper(this).Handle,new IntPtr(-1),bounds.X,bounds.Y,bounds.Width,bounds.Height,0x0040);
         // Alt+F4 등 일반 창 닫기도 Esc와 같은 취소 경로로 완료한다.
         Closed+=(_,_)=>cancel?.Invoke();
     }
+    public void SetPointer(PixelPoint point)=>pointer.SetPointer(point);
     public void SetSelection(PixelRect? value)
     {
-        // 화면 전체 기준 선택 영역을 이 모니터 창의 WPF 좌표로 바꿔 그린다.
+        // 십자와 같은 콘텐츠 좌표를 사용하고 테두리 중심을 실제 캡처 경계에 맞춘다.
         if(value is null){selection.Visibility=size.Visibility=Visibility.Hidden;return;}var r=value.Value;selection.Visibility=size.Visibility=Visibility.Visible;
-        var scaleX=ActualWidth/bounds.Width;var scaleY=ActualHeight/bounds.Height;var x=(r.X-bounds.X)*scaleX;var y=(r.Y-bounds.Y)*scaleY;
-        Canvas.SetLeft(selection,x);Canvas.SetTop(selection,y);selection.Width=Math.Max(0,r.Width*scaleX);selection.Height=Math.Max(0,r.Height*scaleY);
-        size.Text=$"{r.Width} × {r.Height}";Canvas.SetLeft(size,Math.Clamp(x,0,Math.Max(0,ActualWidth-180)));Canvas.SetTop(size,Math.Clamp(y-32,0,Math.Max(0,ActualHeight-35)));
+        var scaleX=canvas.ActualWidth/bounds.Width;var scaleY=canvas.ActualHeight/bounds.Height;var x=(r.X-bounds.X)*scaleX;var y=(r.Y-bounds.Y)*scaleY;
+        var stroke=selection.BorderThickness;
+        Canvas.SetLeft(selection,x-stroke.Left/2);Canvas.SetTop(selection,y-stroke.Top/2);
+        selection.Width=Math.Max(0,r.Width*scaleX)+(stroke.Left+stroke.Right)/2;selection.Height=Math.Max(0,r.Height*scaleY)+(stroke.Top+stroke.Bottom)/2;
+        size.Text=$"{r.Width} × {r.Height}";Canvas.SetLeft(size,Math.Clamp(x,0,Math.Max(0,canvas.ActualWidth-180)));Canvas.SetTop(size,Math.Clamp(y-32,0,Math.Max(0,canvas.ActualHeight-35)));
     }
 }
