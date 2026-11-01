@@ -1,6 +1,5 @@
 using System.Windows;
 using SnapBerry.App.Shell;
-using SnapBerry.App.Interop;
 using System.Windows.Media;
 using System.Windows.Interop;
 namespace SnapBerry.App;
@@ -18,7 +17,16 @@ public partial class App : Application
         // 구버전과 중복 실행되지 않도록 단일 인스턴스 식별자는 이전 이름을 유지한다.
         base.OnStartup(e);mutex=new Mutex(true,"Local\\QuickCapture-"+Environment.UserName,out var created);
         diagnostics.Write($"instance.checked primary={created}");
-        if(!created){var hwnd=NativeMethods.FindWindow(null,"SnapBerry");if(hwnd==IntPtr.Zero)hwnd=NativeMethods.FindWindow(null,"QuickCapture");diagnostics.Write($"instance.activate hwnd={hwnd}");if(hwnd!=IntPtr.Zero)NativeMethods.PostMessage(hwnd,InstanceActivation.Message,IntPtr.Zero,IntPtr.Zero);Shutdown();return;}
+        if (!created)
+        {
+            mutex.Dispose();
+            mutex = null;
+            var notice = Relaunch.Handle(executable, diagnostics);
+            if (notice is not null)
+                MessageBox.Show(notice, "SnapBerry 실행 안내", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
         DispatcherUnhandledException+=(_,args)=>{diagnostics.Write("dispatcher.exception",args.Exception);MessageBox.Show(args.Exception.Message,"SnapBerry");args.Handled=true;};
         try{host=new(e.Args.Contains("--tray"),diagnostics);diagnostics.Write("startup.complete");}catch(Exception ex){diagnostics.Write("startup.failed",ex);MessageBox.Show(ex.Message,"SnapBerry");Shutdown(1);}
     }

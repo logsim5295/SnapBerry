@@ -16,6 +16,7 @@ public sealed class AppHost : IDisposable
     private readonly EditorWindow window;private readonly SettingsService settings;private readonly Forms.NotifyIcon tray;
     private readonly StartupDiagnostics? diagnostics;
     private HotkeyService? hotkeys;private HwndSource? source;private readonly System.Drawing.Icon trayIcon;
+    private Mutex? editorMarker;
     public AppHost(bool startInTray,StartupDiagnostics? diagnostics=null)
     {
         this.diagnostics=diagnostics;
@@ -32,7 +33,16 @@ public sealed class AppHost : IDisposable
         {
             diagnostics?.Write("startup.registration.failed", error);
         }
-        window.SourceInitialized+=(_,_)=>{diagnostics?.Write("editor.source.begin");source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);source.AddHook(WndProc);hotkeys=new(new NativeHotkeyBackend(source.Handle,stage=>diagnostics?.Write(stage)));RegisterSettings(initialSettings);diagnostics?.Write("editor.source.end");};
+        window.SourceInitialized+=(_,_)=>
+        {
+            diagnostics?.Write("editor.source.begin");
+            source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);
+            source.AddHook(WndProc);
+            editorMarker = Relaunch.MarkEditor(Environment.ProcessId, source.Handle, Relaunch.BuildId);
+            hotkeys=new(new NativeHotkeyBackend(source.Handle,stage=>diagnostics?.Write(stage)));
+            RegisterSettings(initialSettings);
+            diagnostics?.Write("editor.source.end");
+        };
         using(var stream=typeof(AppHost).Assembly.GetManifestResourceStream("SnapBerry.App.ico")!)
         using(var icon=new System.Drawing.Icon(stream))trayIcon=(System.Drawing.Icon)icon.Clone();
         tray=new(){Text="SnapBerry",Icon=trayIcon,Visible=true};
@@ -124,5 +134,5 @@ public sealed class AppHost : IDisposable
         if(window.IsBusy)return;try{window.SetBusy(true);await window.FlushAsync();window.CloseForExit();Dispose();Application.Current.Shutdown();}
         catch(Exception e){window.SetBusy(false);Show();MessageBox.Show(window,"이력을 저장하지 못했습니다. 다시 시도해 주세요.\n"+e.Message,"종료 취소");}
     }
-    public void Dispose(){hotkeys?.Dispose();source?.RemoveHook(WndProc);tray.Visible=false;tray.ContextMenuStrip?.Dispose();tray.Dispose();trayIcon.Dispose();}
+    public void Dispose(){editorMarker?.Dispose();hotkeys?.Dispose();source?.RemoveHook(WndProc);tray.Visible=false;tray.ContextMenuStrip?.Dispose();tray.Dispose();trayIcon.Dispose();}
 }

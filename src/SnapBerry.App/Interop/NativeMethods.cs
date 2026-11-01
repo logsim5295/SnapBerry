@@ -26,7 +26,7 @@ internal static class NativeMethods
     [DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr hwnd,IntPtr after,int x,int y,int w,int h,uint flags);
     [DllImport("user32.dll",SetLastError=true)]public static extern bool RegisterHotKey(IntPtr hwnd,int id,uint modifiers,uint key);
     [DllImport("user32.dll")]public static extern bool UnregisterHotKey(IntPtr hwnd,int id);
-    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindow(string? className,string title);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string? className,string title);
     [DllImport("user32.dll")]public static extern bool ShowWindow(IntPtr hwnd,int command);
     [DllImport("user32.dll",SetLastError=true)]public static extern bool PostMessage(IntPtr hwnd,int message,IntPtr wParam,IntPtr lParam);
     [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr hwnd);
