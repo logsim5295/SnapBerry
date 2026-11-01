@@ -6,6 +6,10 @@ Windows 개인 업무용 화면 캡처 및 주석 편집 앱입니다. C#/.NET 1
 
 **macOS 다운로드:** [Apple Silicon DMG](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-arm64.dmg) · [Intel DMG](https://github.com/logsim5295/SnapBerry/releases/latest/download/SnapBerry-macos-x64.dmg)
 
+[![SnapBerry에서 영역을 캡처하고 화살표·번호·스티커를 붙인 뒤 이미지를 복사하고 저장하는 모습](docs/media/snapberry-promo.gif)](docs/media/snapberry-promo.mp4?raw=true)
+
+[소리와 함께 보는 30초 홍보 영상 (MP4)](docs/media/snapberry-promo.mp4?raw=true)
+
 macOS용 Avalonia 시험 버전도 별도 프로젝트로 추가했습니다. 영역·창·전체 화면 캡처, 주석 편집·이력·PNG 저장과 Command+C/V 클립보드, 한국어 스티커, 설정 가능한 전역 캡처 단축키와 메뉴 막대 상주를 제공합니다. Apple Silicon·Intel 모두 GitHub의 맥 환경에서 실제 설치·실행·최초 화면 기록 권한 승인·캡처·클립보드·전역 단축키를 검사합니다. 설치·빌드·지원 기능은 [macOS 안내](docs/macos.md)를 참고하세요.
 
 위 Release 다운로드는 GitHub 로그인 없이 이용할 수 있습니다. 맥 설치는 CPU별 DMG를 열어 SnapBerry를 응용 프로그램 폴더로 옮긴 뒤 실행합니다. 터미널이나 별도 .NET 설치는 필요하지 않습니다. 현재 Developer ID 서명·공증 전 시험 버전이므로 첫 실행 시 보안 승인이 필요할 수 있습니다. [설치 안내](docs/macos.md#터미널-없이-설치하기)를 참고하세요.
