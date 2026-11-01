@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using Microsoft.Win32;
 using System.Windows.Media;
 using SnapBerry.App.Editor;
 namespace SnapBerry.App.Settings;
@@ -66,14 +65,5 @@ public sealed class SettingsWindow : Window
         var useEditor=editor.IsVisible&&editor.WindowState!=WindowState.Minimized;
         Owner=useEditor?editor:null;
         WindowStartupLocation=useEditor?WindowStartupLocation.CenterOwner:WindowStartupLocation.CenterScreen;
-    }
-}
-// 현재 사용자 Run 레지스트리로 트레이 자동 시작을 관리한다. 기존 등록 키 이름은 호환성을 위해 유지한다.
-public static class StartupService
-{
-    public static void SetEnabled(bool enabled)
-    {
-        using var key=Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
-        if(enabled){var path=Environment.ProcessPath??throw new InvalidOperationException("실행 경로를 확인할 수 없습니다.");key.SetValue("QuickCapture",$"\"{path}\" --tray");}else key.DeleteValue("QuickCapture",false);
     }
 }

@@ -23,7 +23,16 @@ public sealed class AppHost : IDisposable
         settings=new(AppDataPaths.RootDirectory);window=new(new CaptureLibraryStore(AppDataPaths.LibraryDirectory),settings);
         diagnostics?.Write("editor.create.end");window.DiagnosticStage=stage=>diagnostics?.Write(stage);window.ContentRendered+=(_,_)=>diagnostics?.Write("editor.content.rendered");
         Application.Current.MainWindow=window;window.CaptureRequested=CaptureAsync;window.SettingsRequested=SettingsAsync;
-        window.SourceInitialized+=(_,_)=>{diagnostics?.Write("editor.source.begin");source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);source.AddHook(WndProc);hotkeys=new(new NativeHotkeyBackend(source.Handle,stage=>diagnostics?.Write(stage)));RegisterSettings(settings.Load());diagnostics?.Write("editor.source.end");};
+        var initialSettings = settings.Load();
+        try
+        {
+            StartupService.RefreshIfEnabled(initialSettings.StartWithWindows);
+        }
+        catch (Exception error) when (error is UnauthorizedAccessException or System.Security.SecurityException or IOException or InvalidOperationException)
+        {
+            diagnostics?.Write("startup.registration.failed", error);
+        }
+        window.SourceInitialized+=(_,_)=>{diagnostics?.Write("editor.source.begin");source=HwndSource.FromHwnd(new WindowInteropHelper(window).Handle);source.AddHook(WndProc);hotkeys=new(new NativeHotkeyBackend(source.Handle,stage=>diagnostics?.Write(stage)));RegisterSettings(initialSettings);diagnostics?.Write("editor.source.end");};
         using(var stream=typeof(AppHost).Assembly.GetManifestResourceStream("SnapBerry.App.ico")!)
         using(var icon=new System.Drawing.Icon(stream))trayIcon=(System.Drawing.Icon)icon.Clone();
         tray=new(){Text="SnapBerry",Icon=trayIcon,Visible=true};
