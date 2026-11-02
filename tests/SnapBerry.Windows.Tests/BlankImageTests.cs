@@ -78,11 +78,12 @@ public class BlankImageTests
         {
             var width=(TextBox)dialog.FindName("BlankWidthInput");var height=(TextBox)dialog.FindName("BlankHeightInput");
             var create=(Button)dialog.FindName("CreateBlankButton");var transparent=(CheckBox)dialog.FindName("BlankTransparent");var color=(Button)dialog.FindName("BlankColorButton");
-            Assert.Equal("1280",width.Text);Assert.Equal("720",height.Text);Assert.True(create.IsEnabled);Assert.NotEqual(true,transparent.IsChecked);
+            Assert.Equal("1280",width.Text);Assert.Equal("720",height.Text);Assert.True(create.IsEnabled);
+            Assert.True(transparent.IsChecked);Assert.False(color.IsEnabled);
             foreach(var invalid in new[]{"","-1","0","1.5","abc","32768","999999999999999"}){width.Text=invalid;Assert.False(create.IsEnabled);}
             width.Text="10000";height.Text="10000";Assert.False(create.IsEnabled);
             width.Text="800";height.Text="600";Assert.True(create.IsEnabled);width.Text="400";Assert.Equal("600",height.Text);
-            transparent.IsChecked=true;Assert.False(color.IsEnabled);transparent.IsChecked=false;Assert.True(color.IsEnabled);
+            transparent.IsChecked=false;Assert.True(color.IsEnabled);transparent.IsChecked=true;Assert.False(color.IsEnabled);
             var content=(FrameworkElement)dialog.Content;content.Measure(new Size(410,double.PositiveInfinity));content.Arrange(new Rect(content.DesiredSize));content.UpdateLayout();
             Assert.InRange(content.ActualHeight,250,500);Assert.Null(dialog.Result);Assert.False(dialog.IsVisible);
         }

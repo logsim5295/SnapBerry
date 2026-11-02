@@ -28,6 +28,25 @@ public class TextEditingTests
         var e=new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonDownEvent};typeof(MouseButtonEventArgs).GetProperty("ClickCount")!.SetValue(e,clickCount);canvas.RaiseEvent(e);Assert.Equal(a.Id,model.SelectedId);Assert.Equal(clickCount==2,called);
         if(clickCount==2){Assert.Equal(a,requested);var dialog=new TextAnnotationEditor(requested!.Text);try{Assert.Equal(a.Text,dialog.Value);}finally{dialog.Close();}}canvas.CancelGesture();Assert.Single(model.Document!.Annotations);
     });
+    [Fact] public void ClickingEmptyAreaAfterSelectingTextOnlyClearsSelection()=>Sta.Run(()=>
+    {
+        var model=new EditorViewModel{Tool=EditorTool.Text};
+        model.Open(new(){Width=100,Height=100,OriginalPng=PngFileWriter.Encode(RenderingTests.Image(100,100))});
+        var text=new Annotation{Kind=AnnotationKind.Text,X=60,Y=60,Width=20,Height=15,Text="기존"};
+        model.History!.Add(text);
+        model.SelectedId=text.Id;
+        var canvas=new EditorCanvas{Model=model};
+        var requested=false;
+        canvas.TextRequested+=(_,_)=>requested=true;
+        canvas.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonDownEvent});
+        Assert.Null(model.SelectedId);
+        Assert.False(requested);
+        var secondClick=new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonDownEvent};
+        typeof(MouseButtonEventArgs).GetProperty("ClickCount")!.SetValue(secondClick,2);
+        canvas.RaiseEvent(secondClick);
+        Assert.False(requested);
+        Assert.Equal(text,Assert.Single(model.Document!.Annotations));
+    });
     [Fact] public void ClickingEmptyAreaStillRequestsNewText()=>Sta.Run(()=>
     {
         var model=new EditorViewModel{Tool=EditorTool.Text};model.Open(new(){Width=100,Height=100,OriginalPng=PngFileWriter.Encode(RenderingTests.Image(100,100))});var canvas=new EditorCanvas{Model=model};var called=false;canvas.TextRequested+=(_,value)=>{called=true;Assert.Null(value);};canvas.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonDownEvent});Assert.True(called);

@@ -37,6 +37,49 @@ public class ConsistencyFixTests
     });
     private static byte[] Pixel(BitmapSource bitmap,int x,int y)
     {var bytes=new byte[4];bitmap.CopyPixels(new Int32Rect(x,y,1,1),bytes,4,0);return bytes;}
+    [Fact] public void MovingRectangleReusesTheMosaickedBackgroundBetweenFrames()=>Sta.Run(()=>
+    {
+        const int size=512;
+        var model=new EditorViewModel();
+        model.Open(new(){Width=size,Height=size,OriginalPng=PngFileWriter.Encode(RenderingTests.Image(size,size))});
+        model.History!.Add(new(){Kind=AnnotationKind.Mosaic,X=0,Y=0,Width=30,Height=30});
+        var rectangle=new Annotation{Kind=AnnotationKind.Rectangle,X=10,Y=10,Width=30,Height=20};
+        model.History.Add(rectangle);
+        var canvas=new EditorCanvas{Model=model};canvas.Refresh();
+        canvas.Measure(new Size(size,size));canvas.Arrange(new Rect(0,0,size,size));
+        Field(canvas,"before",rectangle);Field(canvas,"preview",rectangle);Field(canvas,"dragging",true);
+        Field(canvas,"start",new PixelPoint(17,12));
+        var visual=new DrawingVisual();
+        void RenderAt(PixelPoint pointer)
+        {
+            canvas.MoveAnnotation(pointer);
+            using(var drawing=visual.RenderOpen())Call(canvas,"OnRender",drawing);
+        }
+        RenderAt(new(30,25));
+        var allocated=GC.GetAllocatedBytesForCurrentThread();
+        for(var i=0;i<8;i++)RenderAt(new(40+i,30+i));
+        // 여러 프레임을 그려도 원본 크기의 BGRA 버퍼 하나보다 적게 할당해야 한다.
+        Assert.InRange(GC.GetAllocatedBytesForCurrentThread()-allocated,0,size*size*4);
+        var pixels=new RenderTargetBitmap(size,size,96,96,PixelFormats.Pbgra32);
+        pixels.Render(visual);
+        Assert.True(Pixel(pixels,40,45)[2]>200); // 마지막 커서 (47,37)에서 왼쪽 7px인 사각형의 왼쪽 변
+        Assert.Equal(rectangle,model.Document!.Annotations[1]);
+    });
+    [Fact] public void RectangleMoveCommitsTheGrabOffsetAtReleaseAfterTheLastMove()=>Sta.Run(()=>
+    {
+        var model=new EditorViewModel();model.Open(Record());
+        var rectangle=new Annotation{Kind=AnnotationKind.Rectangle,X=15,Y=25,Width=40,Height=20};
+        model.History!.Add(rectangle);model.CropTo(new(10,20,80,40));model.History.Resize(new(160,20));model.Zoom=1.5;
+        var canvas=new EditorCanvas{Model=model};canvas.Refresh();
+        Field(canvas,"before",rectangle);Field(canvas,"preview",rectangle);Field(canvas,"dragging",true);
+        Field(canvas,"start",canvas.ToDocumentPoint(new Point(24,7.5))); // (18,30), 3px right and 5px down
+        canvas.MoveAnnotation(new(60,45));
+        var up=new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left);
+        var release=canvas.ToDocumentPoint(up.GetPosition(canvas));
+        Call(canvas,"OnMouseLeftButtonUp",up);
+        Assert.Equal(rectangle with{X=release.X-3,Y=release.Y-5},Assert.Single(model.Document!.Annotations));
+        model.History.Undo();Assert.Equal(rectangle,Assert.Single(model.Document.Annotations));
+    });
     [Fact] public void DragPreviewAndCommittedCompositeHaveTheSameStackingOrder()=>Sta.Run(()=>
     {
         var model=new EditorViewModel();model.Open(Record());
@@ -87,7 +130,7 @@ public class ConsistencyFixTests
         var resized=(Annotation)typeof(EditorCanvas).GetField("preview",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(canvas)!;
         var measured=new FormattedText(text.Text,System.Globalization.CultureInfo.CurrentCulture,FlowDirection.LeftToRight,new Typeface("Segoe UI"),fontSize,Brushes.Black,1);
         Assert.Equal(fontSize,resized.Style.FontSize,8);Assert.Equal(Math.Max(1,measured.Width),resized.Width,8);Assert.Equal(Math.Max(1,measured.Height),resized.Height,8);
-        Call(canvas,"OnMouseLeftButtonUp",new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent});
+        canvas.FinishAnnotation(new(text.X+text.Width*ratio,text.Y+text.Height));
         Assert.Equal(resized,model.Document.Annotations[0]);model.History.Undo();Assert.Equal(text,model.Document.Annotations[0]);model.History.Redo();Assert.Equal(resized,model.Document.Annotations[0]);
     });
     [Fact] public void ShortExistingTextCanBeMovedAtTheMinimumFontSize()=>Sta.Run(()=>
@@ -95,7 +138,7 @@ public class ConsistencyFixTests
         var model=new EditorViewModel();model.Open(Record());var text=new Annotation{Kind=AnnotationKind.Text,Text="i",Width=1,Height=1.2,Style=new(){FontSize=1}};
         model.History!.Add(text);var moved=text with{X=20};var canvas=new EditorCanvas{Model=model};canvas.Refresh();
         Field(canvas,"before",text);Field(canvas,"preview",moved);Field(canvas,"dragging",true);
-        Call(canvas,"OnMouseLeftButtonUp",new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent});
+        canvas.FinishAnnotation(new(20-text.X,0));
         Assert.Equal(moved,Assert.Single(model.Document!.Annotations));model.History.Undo();Assert.Equal(text,Assert.Single(model.Document.Annotations));
     });
     [Fact] public void SameSizeExternalEditsRefreshTheThumbnailAndUnchangedFilesReuseIt()=>Sta.Run(()=>

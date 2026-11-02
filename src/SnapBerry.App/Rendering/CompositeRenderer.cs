@@ -34,7 +34,7 @@ public sealed class CompositeRenderer
     // 중간 버퍼까지 포함한 예상 비용으로 이미지 크기를 제한한다.
     public static void GuardSize(int width,int height)
     {if(width<=0||height<=0||checked((long)width*height*20)>512L*1024*1024)throw new InvalidOperationException("Image is too large. Capture a smaller region.");}
-    private static BitmapSource Mosaic(BitmapSource input,IReadOnlyList<Annotation> items)
+    internal static BitmapSource Mosaic(BitmapSource input,IReadOnlyList<Annotation> items)
     {
         // 겹친 영역에는 더 큰 블록을 적용한다. 평균색은 원본에서 계산하며 블록별로 캐시한다.
         var areas=items.Where(x=>x.Kind==AnnotationKind.Mosaic).ToArray();if(areas.Length==0)return input;

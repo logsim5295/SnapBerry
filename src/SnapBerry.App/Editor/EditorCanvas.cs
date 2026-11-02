@@ -12,6 +12,8 @@ public sealed class EditorCanvas : FrameworkElement
     private static Brush CreateChecker(){var image=SnapBerry.App.Export.PngFileWriter.Decode(SnapBerry.Imaging.MagicWandSelection.CheckerboardPng());var brush=new ImageBrush(image){TileMode=TileMode.Tile,ViewportUnits=BrushMappingMode.Absolute,Viewport=new Rect(0,0,16,16)};brush.Freeze();return brush;}
     public EditorViewModel Model {get;set;}=null!;
     private PixelPoint start;private Annotation? before,preview;private bool dragging,resizing;private AnnotationDocument? lastDocument;
+    private sealed record PreviewLayers(Guid State,Guid ActiveId,DrawingGroup Below,DrawingGroup Above);
+    private PreviewLayers? previewLayers;
     private readonly ShapePlacement shape=new();private readonly CropPlacement crop=new();private PixelRect? lastCropBounds;private PixelSize? lastOutputSize;
     public event Action<PixelPoint,Annotation?>? TextRequested;
     public event Action? SelectionChanged;
@@ -26,7 +28,7 @@ public sealed class EditorCanvas : FrameworkElement
     internal PixelPoint ToDocumentPoint(Point point){var bounds=Model.Document?.CropBounds;return new(point.X/(Model.Zoom*ScaleX)+(bounds?.X??0),point.Y/(Model.Zoom*ScaleY)+(bounds?.Y??0));}
     private PixelPoint Point(MouseEventArgs e)=>ToDocumentPoint(e.GetPosition(this));
     public void Refresh(){var bytes=Model.MagicWandPreview;if(!ReferenceEquals(bytes,wandBytes)){wandBytes=bytes;wandOverlay=bytes is null?null:SnapBerry.App.Export.PngFileWriter.Decode(bytes);}if(lastDocument!=Model.Document||lastCropBounds!=Model.Document?.CropBounds||lastOutputSize!=Model.Document?.OutputSize){CancelGesture();lastDocument=Model.Document;lastCropBounds=Model.Document?.CropBounds;lastOutputSize=Model.Document?.OutputSize;}Width=(Model.Document?.OutputSize.Width??900)*Model.Zoom;Height=(Model.Document?.OutputSize.Height??600)*Model.Zoom;InvalidateVisual();}
-    public void CancelGesture(){shape.Cancel();crop.Cancel();dragging=false;before=null;preview=null;resizing=false;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();}
+    public void CancelGesture(){shape.Cancel();crop.Cancel();dragging=false;before=null;preview=null;previewLayers=null;resizing=false;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();}
     protected override void OnLostMouseCapture(MouseEventArgs e){base.OnLostMouseCapture(e);if(dragging||crop.Active)CancelGesture();}
     internal Annotation? ShapePreview=>shape.Preview is Annotation a&&a.Kind==AnnotationKind.Mosaic?a with{MosaicBlockSize=Model.MosaicSize}:shape.Preview;
     internal bool BeginShape(PixelPoint point)
@@ -57,14 +59,14 @@ public sealed class EditorCanvas : FrameworkElement
         // 원본부터 투명한 빈 화면과 가져온 PNG도 같은 배경 위에 표시한다. 불투명 픽셀은 체크무늬를 덮는다.
         base.OnRender(dc);dc.DrawRectangle(Model.Document is null?Brushes.White:checker,null,new Rect(RenderSize));if(Model.Document is null)return;
         dc.PushTransform(new ScaleTransform(Model.Zoom*ScaleX,Model.Zoom*ScaleY));
-        var image=Model.Composite();
-        if(preview is not null&&Model.Background is not null)
+        if(preview is {Kind:not AnnotationKind.Mosaic} active)
+            DrawAnnotationPreview(dc,Model.Document,active);
+        else
         {
-            var list=Model.Document.Annotations.ToList();var index=list.FindIndex(a=>a.Id==preview.Id);
-            if(index>=0)list[index]=preview;else list.Add(preview);
-            image=new CompositeRenderer().Render(Model.Background,list,Model.Assets,Model.Document.CropBounds,Model.Document.ResizeSize);
+            previewLayers=null;
+            var image=preview is null?Model.Composite():RenderMosaicPreview(Model.Document,preview);
+            if(image is not null)dc.DrawImage(image,new Rect(0,0,Model.Document.Width,Model.Document.Height));
         }
-        if(image is not null)dc.DrawImage(image,new Rect(0,0,Model.Document.Width,Model.Document.Height));
         if(wandOverlay is not null)dc.DrawImage(wandOverlay,new Rect(-Model.Document.CropBounds.X,-Model.Document.CropBounds.Y,Model.Document.SourceWidth,Model.Document.SourceHeight));
         var selected=preview??Model.Selected;
         if(selected is not null&&Model.Tool!=EditorTool.Crop)
@@ -78,6 +80,39 @@ public sealed class EditorCanvas : FrameworkElement
             dc.Pop();
         }
         if(Model.Tool==EditorTool.Crop)DrawCrop(dc,crop.Preview??new(0,0,Model.Document.Width,Model.Document.Height));
+        dc.Pop();
+    }
+    private System.Windows.Media.Imaging.BitmapSource RenderMosaicPreview(AnnotationDocument document,Annotation mosaic)
+    {
+        var items=document.Annotations.ToList();var index=items.FindIndex(a=>a.Id==mosaic.Id);
+        if(index>=0)items[index]=mosaic;else items.Add(mosaic);
+        return new CompositeRenderer().Render(Model.Background!,items,Model.Assets,document.CropBounds,document.ResizeSize);
+    }
+    private void DrawAnnotationPreview(DrawingContext dc,AnnotationDocument document,Annotation active)
+    {
+        var state=Model.History!.CurrentStateToken;
+        if(previewLayers is null||previewLayers.State!=state||previewLayers.ActiveId!=active.Id)
+        {
+            // 드래그하는 주석의 원래 순서를 기준으로 고정된 그림을 한 번만 준비한다.
+            var below=new DrawingGroup();var above=new DrawingGroup();
+            using(var lower=below.Open())
+            using(var upper=above.Open())
+            {
+                lower.DrawImage(CompositeRenderer.Mosaic(Model.Background!,document.Annotations),new Rect(0,0,document.SourceWidth,document.SourceHeight));
+                var layer=lower;
+                foreach(var annotation in document.Annotations)
+                {
+                    if(annotation.Id==active.Id)layer=upper;
+                    else if(annotation.Kind!=AnnotationKind.Mosaic)CompositeRenderer.DrawAnnotation(layer,annotation,Model.Assets);
+                }
+            }
+            below.Freeze();above.Freeze();
+            previewLayers=new(state,active.Id,below,above);
+        }
+        dc.PushTransform(new TranslateTransform(-document.CropBounds.X,-document.CropBounds.Y));
+        dc.DrawDrawing(previewLayers.Below);
+        CompositeRenderer.DrawAnnotation(dc,active,Model.Assets);
+        dc.DrawDrawing(previewLayers.Above);
         dc.Pop();
     }
     private void DrawCrop(DrawingContext dc,PixelRect bounds)
@@ -123,7 +158,10 @@ public sealed class EditorCanvas : FrameworkElement
             switch(Model.Tool)
             {
                 case EditorTool.Text:
-                    Model.SelectedId=null;SelectionChanged?.Invoke();TextRequested?.Invoke(start,null);InvalidateVisual();return;
+                    var insertText=Model.Selected?.Kind!=AnnotationKind.Text&&e.ClickCount==1;
+                    Model.SelectedId=null;SelectionChanged?.Invoke();
+                    if(insertText)TextRequested?.Invoke(start,null);
+                    InvalidateVisual();return;
                 case EditorTool.Number:Model.SelectedId=null;Model.History!.InsertStep(start,Model.Style);Model.SelectedId=Model.Document.Annotations.Last().Id;SelectionChanged?.Invoke();InvalidateVisual();return;
                 case EditorTool.Sticker:if(Model.SelectedSticker is not null)Model.InsertSticker(Model.SelectedSticker,start);return;
                 case EditorTool.Select:
@@ -175,7 +213,13 @@ public sealed class EditorCanvas : FrameworkElement
     protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
     {
         // 결과를 명령 하나로 기록하여 마우스를 여러 번 움직여도 실행 취소는 한 번만 필요하다.
-        base.OnMouseLeftButtonUp(e);if(crop.Active){FinishCrop(ViewPoint(e));e.Handled=true;return;}if(shape.Active){FinishShape(Point(e));return;}if(!dragging)return;var result=preview;dragging=false;preview=null;ReleaseMouseCapture();
+        base.OnMouseLeftButtonUp(e);if(crop.Active){FinishCrop(ViewPoint(e));e.Handled=true;return;}if(shape.Active){FinishShape(Point(e));return;}if(dragging)FinishAnnotation(Point(e));
+    }
+    internal void FinishAnnotation(PixelPoint point)
+    {
+        if(!dragging)return;
+        if(point!=start||preview!=before)MoveAnnotation(point);
+        var result=preview;dragging=false;preview=null;previewLayers=null;ReleaseMouseCapture();
         // 최소 생성 크기는 새 주석에만 적용한다. 작은 기존 글자도 이동·크기 변경을 확정한다.
         if(result is not null&&(before is not null||Math.Abs(result.Width)>2||Math.Abs(result.Height)>2)){Model.SelectedId=result.Id;if(before is null)Model.History!.Add(result);else if(result!=before)Model.History!.Replace(result);}before=null;InvalidateVisual();
     }

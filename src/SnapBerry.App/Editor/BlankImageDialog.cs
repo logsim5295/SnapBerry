@@ -51,6 +51,7 @@ public sealed class BlankImageDialog : Window
         };
         transparent.Style=(Style)FindResource("PurpleCheckBoxStyle");
         transparent.Checked+=(_,_)=>colorButton.IsEnabled=false;transparent.Unchecked+=(_,_)=>colorButton.IsEnabled=true;
+        transparent.IsChecked=true;
         panel.Children.Add(colorButton);panel.Children.Add(transparent);error.Foreground=ThemeResources.Get(this,"Danger");panel.Children.Add(error);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,20,0,0)};
         create.Style=(Style)FindResource("PurplePrimaryButtonStyle");

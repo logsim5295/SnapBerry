@@ -173,9 +173,8 @@ public class HistoryClipboardTests
         var canvas=new EditorCanvas{Model=model};canvas.Refresh();
         void Field(string name,object value)=>typeof(EditorCanvas).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(canvas,value);
         Field("before",pasted);Field("preview",pasted);Field("start",new PixelPoint(30,30));Field("dragging",true);Field("resizing",resize);
-        canvas.MoveAnnotation(resize?new(110,70):new(40,35));
-        typeof(EditorCanvas).GetMethod("OnMouseLeftButtonUp",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(canvas,
-            [new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent}]);
+        var end=resize?new PixelPoint(110,70):new PixelPoint(40,35);
+        canvas.MoveAnnotation(end);canvas.FinishAnnotation(end);
         var changed=Assert.Single(model.Document!.Annotations);
         Assert.Equal(resize?(30d,30d,80d,40d):(40d,35d,40d,20d),(changed.X,changed.Y,changed.Width,changed.Height));
         model.History!.Undo();Assert.Equal(pasted,Assert.Single(model.Document.Annotations));
@@ -191,9 +190,8 @@ public class HistoryClipboardTests
         var canvas=new EditorCanvas{Model=model};canvas.Refresh();
         void Field(string name,object value)=>typeof(EditorCanvas).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(canvas,value);
         Field("before",pasted);Field("preview",pasted);Field("dragging",true);Field("resizing",true);
-        canvas.MoveAnnotation(new(pasted.X+20,pasted.Y+20));
-        typeof(EditorCanvas).GetMethod("OnMouseLeftButtonUp",BindingFlags.Instance|BindingFlags.NonPublic)!.Invoke(canvas,
-            [new MouseButtonEventArgs(Mouse.PrimaryDevice,0,MouseButton.Left){RoutedEvent=UIElement.MouseLeftButtonUpEvent}]);
+        var end=new PixelPoint(pasted.X+20,pasted.Y+20);
+        canvas.MoveAnnotation(end);canvas.FinishAnnotation(end);
         var resized=Assert.Single(model.Document!.Annotations);Assert.Equal(20,resized.Width,8);Assert.Equal(expectedHeight,resized.Height,8);
         model.History!.Undo();Assert.Equal(pasted,Assert.Single(model.Document.Annotations));
     });
