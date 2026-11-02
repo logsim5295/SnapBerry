@@ -137,7 +137,7 @@ public class PurpleThemeTests
     [AvaloniaTheory] [InlineData(false)] [InlineData(true)]
     public void ResizeAndSettingsDialogsInheritPurpleAndKeepTheirFunctionalColors(bool dark)
     {
-        foreach(var dialog in new Window[]{new ImageResizeWindow(new(800,400),new(400,200)),new DesktopSettingsWindow(dark,true,true,(_,_)=>Task.CompletedTask),new ColorPickerWindow("#E83F56"),new TextEditWindow("테스트","텍스트 편집"),new HotkeySettingsWindow(new(),_=>Task.CompletedTask),new AboutWindow("unused",_=>{},(Action<string>)(_=>{})),new StickerPickerWindow(_=>{})})
+        foreach(var dialog in new Window[]{new ImageResizeWindow(new(800,400),new(400,200)),new DesktopSettingsWindow(dark,true,true,true,(_,_,_)=>Task.CompletedTask),new ColorPickerWindow("#E83F56"),new TextEditWindow("테스트","텍스트 편집"),new HotkeySettingsWindow(new(),_=>Task.CompletedTask),new AboutWindow("unused",_=>{},(Action<string>)(_=>{})),new StickerPickerWindow(_=>{})})
         try
         {
             dialog.RequestedThemeVariant=dark?ThemeVariant.Dark:ThemeVariant.Light;dialog.Show();Dispatcher.UIThread.RunJobs();

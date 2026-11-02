@@ -7,6 +7,7 @@ public sealed record AppSettings
 {
     public int SchemaVersion { get; init; } = 1;
     public AppTheme Theme { get; init; } = AppTheme.Light;
+    public bool ShowRegionGuides { get; init; } = true;
     public bool StartWithWindows { get; init; }
     // 첫 닫기 안내를 확인한 사용자에게는 다음 실행부터 안내를 반복하지 않는다.
     public bool HasSeenTrayNotice { get; init; }

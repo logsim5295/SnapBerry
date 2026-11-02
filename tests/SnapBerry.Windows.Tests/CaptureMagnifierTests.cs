@@ -42,7 +42,7 @@ public class CaptureMagnifierTests
     }
 
     [Fact]
-    public void ScaledOverlayShowsOriginalPixelAndClearsWhenPointerLeavesMonitor() => Sta.Run(() =>
+    public void ScaledOverlayAlignsPixelSampleAndGuidesAcrossMonitorEdge() => Sta.Run(() =>
     {
         // 물리 800×600 화면을 150% DPI에 해당하는 WPF 좌표로 그린다.
         var pixels = new byte[800 * 600 * 4];
@@ -63,8 +63,17 @@ public class CaptureMagnifierTests
         Assert.Equal(new byte[] { 255, 0, 0, 255 }, Pixel(rendered, 292, 200));
         Assert.Equal(Pixel(rendered, 300, 200), Pixel(rendered, 301, 201)); // 보간 없이 한 원본 픽셀을 확대
         Assert.True(Pixel(rendered, 215, 100)[3] > 0); // 확대된 +의 오른쪽 팔
+        Assert.True(Pixel(rendered, 0, 100)[3] > 0);
+        Assert.True(Pixel(rendered, 532, 100)[3] > 0);
+        Assert.True(Pixel(rendered, 200, 0)[3] > 0);
+        Assert.True(Pixel(rendered, 200, 399)[3] > 0);
         Assert.False(visual.IsHitTestVisible);
         visual.SetPointer(new(0, 150));
+        var adjacent = Render(visual);
+        Assert.True(Pixel(adjacent, 0, 100)[3] > 0);
+        Assert.Equal((byte)0, Pixel(adjacent, 200, 0)[3]);
+        Assert.Equal((byte)0, Pixel(adjacent, 300, 200)[3]);
+        visual.SetPointer(new(0, 750));
         Assert.All(Render(visual), value => Assert.Equal((byte)0, value));
     });
 
@@ -88,6 +97,28 @@ public class CaptureMagnifierTests
         // 오른쪽 경계에서 확대경은 왼쪽에 놓이지만, 샘플은 이웃 모니터까지 포함한다.
         Assert.Equal(new byte[] { 0, 0, 255, 255 }, Pixel(rendered, 299, 200));
         Assert.Equal(new byte[] { 0, 255, 0, 255 }, Pixel(rendered, 307, 200));
+    });
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public void DisabledGuidesAndWindowSelectionKeepOnlyLocalPointer(bool windowSelection, bool guidesEnabled) => Sta.Run(() =>
+    {
+        var window = new CaptureOverlay(new(0, 0, 534, 400), RenderingTests.Image(534, 400),
+            windowSelection: windowSelection, showRegionGuides: guidesEnabled);
+        try
+        {
+            var root = Assert.IsType<System.Windows.Controls.Grid>(window.Content);
+            root.Measure(new Size(534, 400));
+            root.Arrange(new Rect(0, 0, 534, 400));
+            window.SetPointer(new(200, 100));
+            var visual = Assert.Single(root.Children.OfType<CapturePointerVisual>());
+            var pixels = Render(visual);
+            Assert.Equal((byte)0, Pixel(pixels, 0, 100)[3]);
+            Assert.Equal((byte)0, Pixel(pixels, 200, 0)[3]);
+            Assert.True(Pixel(pixels, 215, 100)[3] > 0);
+        }
+        finally { window.Close(); }
     });
 
     private static byte[] Render(FrameworkElement visual)

@@ -9,6 +9,7 @@ public sealed record DesktopPreferences(bool Dark=false)
     public bool HistoryVisible {get;init;}=true;
     public double HistoryPanelWidth {get;init;}=240;
     public bool StartAtLogin {get;init;}
+    public bool ShowRegionGuides {get;init;}=true;
     public string LastSaveDirectory {get;init;}="";
     public static string DataDirectory=>OperatingSystem.IsMacOS()
         ?Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),"Library","Application Support","SnapBerry")

@@ -53,10 +53,12 @@ public sealed class SettingsWindow : Window
             reset.Click+=(_,_)=>box.SetBindingText(defaultValue);box.TextChanged+=(_,_)=>Validate();box.CaptureStatusChanged+=Validate;return box;
         }
         var defaults=new AppSettings();var region=Input("영역 캡처","RegionHotkey",settings.RegionKey,defaults.RegionKey);var window=Input("창 캡처","WindowHotkey",settings.WindowKey,defaults.WindowKey);var desktop=Input("전체 화면 캡처","DesktopHotkey",settings.DesktopKey,defaults.DesktopKey);
-        var startup=new CheckBox{Style=(Style)FindResource("PurpleCheckBoxStyle"),Content="Windows 시작 시 실행",IsChecked=settings.StartWithWindows,Margin=new Thickness(0,4,0,12)};panel.Children.Add(startup);
+        var guides=new CheckBox{Style=(Style)FindResource("PurpleCheckBoxStyle"),Content="영역 캡처 시 가로·세로 가이드선 표시",IsChecked=settings.ShowRegionGuides,Margin=new Thickness(0,4,0,8)};
+        RegisterName("RegionGuidesCheckBox",guides);panel.Children.Add(guides);
+        var startup=new CheckBox{Style=(Style)FindResource("PurpleCheckBoxStyle"),Content="Windows 시작 시 실행",IsChecked=settings.StartWithWindows,Margin=new Thickness(0,4,0,12)};RegisterName("StartupCheckBox",startup);panel.Children.Add(startup);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,16,0,0)};
         save=new Button{Content="저장",Height=34,Width=80,Style=(Style)FindResource("PurplePrimaryButtonStyle")};RegisterName("SaveSettingsButton",save);save.Click+=(_,_)=>
-        {Validate();if(!save.IsEnabled)return;Result=settings with{Theme=theme.SelectedIndex==1?AppTheme.Dark:AppTheme.Light,RegionKey=region.Text,WindowKey=window.Text,DesktopKey=desktop.Text,StartWithWindows=startup.IsChecked==true};DialogResult=true;};buttons.Children.Add(save);panel.Children.Add(buttons);
+        {Validate();if(!save.IsEnabled)return;Result=settings with{Theme=theme.SelectedIndex==1?AppTheme.Dark:AppTheme.Light,RegionKey=region.Text,WindowKey=window.Text,DesktopKey=desktop.Text,StartWithWindows=startup.IsChecked==true,ShowRegionGuides=guides.IsChecked==true};DialogResult=true;};buttons.Children.Add(save);panel.Children.Add(buttons);
         Content=new Border{Background=ThemeResources.Get(this,"Surface"),BorderBrush=ThemeResources.Get(this,"Selected"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(8),Child=panel};Validate();
     }
     // 트레이에서 열 때 숨김·최소화 편집기를 소유자로 연결하지 않아 편집기가 함께 복원되지 않게 한다.

@@ -48,14 +48,45 @@ public class ParityViewTests
         var path=Path.Combine(Path.GetTempPath(),"SnapBerry-parity-settings-"+Guid.NewGuid());var login=new Login();using var editor=new DesktopEditor();using var window=new MainWindow(editor,new NoCapture(),path,loginStartup:login);
         try
         {
-            window.SetHistoryPanelVisible(false);await window.ApplyAppearanceSettingsAsync(true,true);var saved=DesktopPreferences.Load(path);
-            Assert.True(saved.Dark);Assert.True(saved.StartAtLogin);Assert.False(saved.HistoryVisible);Assert.True(login.IsEnabled);
+            window.SetHistoryPanelVisible(false);await window.ApplyAppearanceSettingsAsync(true,true,false);var saved=DesktopPreferences.Load(path);
+            Assert.True(saved.Dark);Assert.True(saved.StartAtLogin);Assert.False(saved.HistoryVisible);Assert.False(saved.ShowRegionGuides);Assert.True(login.IsEnabled);
         }
         finally{window.Dispose();window.Close();if(Directory.Exists(path))Directory.Delete(path,true);}
         var file=Path.GetTempFileName();var failedLogin=new Login();using var otherEditor=new DesktopEditor();using var other=new MainWindow(otherEditor,new NoCapture(),file,loginStartup:failedLogin);
         try
-        {await Assert.ThrowsAnyAsync<IOException>(()=>other.ApplyAppearanceSettingsAsync(true,true));Assert.False(failedLogin.IsEnabled);Assert.Equal(new[]{true,false},failedLogin.Changes);}
+        {await Assert.ThrowsAnyAsync<IOException>(()=>other.ApplyAppearanceSettingsAsync(true,true,false));Assert.False(failedLogin.IsEnabled);Assert.Equal(new[]{true,false},failedLogin.Changes);}
         finally{other.Dispose();other.Close();File.Delete(file);}
+    }
+    [AvaloniaFact] public async Task RegionGuidePreferenceDefaultsOnAndControlsTheMacCaptureService()
+    {
+        var path=Path.Combine(Path.GetTempPath(),"SnapBerry-parity-guides-"+Guid.NewGuid());
+        Directory.CreateDirectory(path);
+        try
+        {
+            Assert.True(DesktopPreferences.Load(path).ShowRegionGuides);
+            File.WriteAllText(Path.Combine(path,"desktop-settings.json"),"""{"Dark":true}""");
+            var previous=DesktopPreferences.Load(path);
+            Assert.True(previous.Dark);
+            Assert.True(previous.ShowRegionGuides);
+            (previous with{ShowRegionGuides=false}).Save(path);
+
+            var service=new MacCaptureService((_,_)=>throw new InvalidOperationException("OS capture prohibited"));
+            using var editor=new DesktopEditor();
+            using var window=new MainWindow(editor,service,path,loginStartup:new Login());
+            Assert.False(service.ShowRegionGuides);
+            var dialog=new DesktopSettingsWindow(true,false,true,false,window.ApplyAppearanceSettingsAsync);
+            try
+            {
+                var checkbox=dialog.FindControl<CheckBox>("ShowRegionGuidesBox")!;
+                Assert.False(checkbox.IsChecked);
+                checkbox.IsChecked=true;
+                Assert.True(await dialog.TrySaveAsync());
+                Assert.True(service.ShowRegionGuides);
+                Assert.True(DesktopPreferences.Load(path).ShowRegionGuides);
+            }
+            finally{dialog.Close();window.Dispose();window.Close();}
+        }
+        finally{Directory.Delete(path,true);}
     }
     [AvaloniaFact] public void StartingANewMosaicClearsTheOldSelectionAndShowsTheActualBlockSize()
     {
@@ -80,7 +111,7 @@ public class ParityViewTests
         var original=new MacLoginStartupService(path,first,501,_=>new(0,"","disabled services = {\n}"));original.SetEnabled(true);
         var relocated=new MacLoginStartupService(path,moved,501,_=>new(0,"","disabled services = {\n}"));Assert.False(relocated.IsEnabled);
         using var editor=new DesktopEditor();using var window=new MainWindow(editor,new NoCapture(),path,loginStartup:relocated);
-        try{await window.ApplyAppearanceSettingsAsync(false,false);Assert.False(File.Exists(Path.Combine(path,"Library","LaunchAgents","com.ynsim.snapberry.plist")));}
+        try{await window.ApplyAppearanceSettingsAsync(false,false,true);Assert.False(File.Exists(Path.Combine(path,"Library","LaunchAgents","com.ynsim.snapberry.plist")));}
         finally{window.Dispose();window.Close();if(Directory.Exists(path))Directory.Delete(path,true);}
     }
     [AvaloniaFact] public async Task ColorPickerEditsRgbWithoutRejectingOrDiscardingExistingOpacity()

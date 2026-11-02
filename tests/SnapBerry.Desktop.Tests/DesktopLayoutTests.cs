@@ -65,7 +65,7 @@ public class DesktopLayoutTests
     {
         var variant = dark ? Avalonia.Styling.ThemeVariant.Dark : Avalonia.Styling.ThemeVariant.Light;
         foreach (var dialog in new Window[] {
-            new DesktopSettingsWindow(dark, false, true, (_, _) => Task.CompletedTask),
+            new DesktopSettingsWindow(dark, false, true, true, (_, _, _) => Task.CompletedTask),
             new HotkeySettingsWindow(new(), _ => Task.CompletedTask) })
         {
             try

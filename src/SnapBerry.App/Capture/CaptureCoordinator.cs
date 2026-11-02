@@ -12,7 +12,7 @@ namespace SnapBerry.App.Capture;
 // 모니터마다 캡처 오버레이를 띄우고 영역 또는 창 선택 결과를 하나의 비동기 작업으로 반환한다.
 public sealed class CaptureCoordinator
 {
-    public Task<CaptureFrame?> SelectAsync(CaptureFrame frame,CaptureMode mode)
+    public Task<CaptureFrame?> SelectAsync(CaptureFrame frame,CaptureMode mode,bool showRegionGuides=true)
     {
         if(mode==CaptureMode.Desktop)return Task.FromResult<CaptureFrame?>(frame);
         var source=new TaskCompletionSource<CaptureFrame?>();var windows=new List<CaptureOverlay>();PixelPoint? start=null;PixelRect? current=null;var complete=false;
@@ -63,7 +63,7 @@ public sealed class CaptureCoordinator
         foreach(var screen in System.Windows.Forms.Screen.AllScreens)
         {
             var b=screen.Bounds;var bounds=new PixelRect(b.X,b.Y,b.Width,b.Height);var crop=CaptureService.Crop(frame,bounds).Image;
-            CaptureOverlay window=null!;window=new CaptureOverlay(bounds,crop,()=>Finish(null,window),mode==CaptureMode.Window,frame);windows.Add(window);
+            CaptureOverlay window=null!;window=new CaptureOverlay(bounds,crop,()=>Finish(null,window),mode==CaptureMode.Window,frame,showRegionGuides);windows.Add(window);
             window.MouseLeftButtonDown+=(_,e)=>{var p=NativeMethods.Cursor();DrawPointer(p);if(mode==CaptureMode.Window){MoveWindowPointer(p);Finish(current);e.Handled=true;return;}start=p;window.CaptureMouse();e.Handled=true;};
             window.MouseMove+=(_,_)=>
             {
@@ -91,9 +91,9 @@ internal sealed class CaptureOverlay : Window
     private readonly Canvas canvas=new();private readonly Border selection=new(){BorderBrush=Brushes.White,BorderThickness=new Thickness(2),Background=new SolidColorBrush(Color.FromArgb(20,255,255,255))};private readonly TextBlock size=new(){Foreground=Brushes.White,Background=Brushes.Black,Padding=new Thickness(5)};
     private readonly PixelRect bounds;
     private readonly CapturePointerVisual pointer;
-    public CaptureOverlay(PixelRect screen,BitmapSource background,Action? cancel=null,bool windowSelection=false,CaptureFrame? frame=null)
+    public CaptureOverlay(PixelRect screen,BitmapSource background,Action? cancel=null,bool windowSelection=false,CaptureFrame? frame=null,bool showRegionGuides=true)
     {
-        bounds=screen;pointer=new CapturePointerVisual(screen,frame??new CaptureFrame(background,screen));WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;Topmost=true;Cursor=Cursors.None;Left=screen.X;Top=screen.Y;Width=screen.Width;Height=screen.Height;
+        bounds=screen;pointer=new CapturePointerVisual(screen,frame??new CaptureFrame(background,screen),showRegionGuides&&!windowSelection);WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;Topmost=true;Cursor=Cursors.None;Left=screen.X;Top=screen.Y;Width=screen.Width;Height=screen.Height;
         var grid=new Grid();grid.Children.Add(new Image{Source=background,Stretch=Stretch.Fill});grid.Children.Add(new Border{Background=new SolidColorBrush(Color.FromArgb(65,0,0,0)),IsHitTestVisible=false});grid.Children.Add(canvas);canvas.Background=Brushes.Transparent;canvas.Children.Add(selection);canvas.Children.Add(size);Content=grid;SetSelection(null);
         if(windowSelection)grid.Children.Add(new TextBlock{Text="클릭: 캡처  ·  휠 위/아래: 상위/하위 영역  ·  Esc: 취소",Foreground=Brushes.White,Background=Brushes.Black,Padding=new Thickness(12,8,12,8),Margin=new Thickness(12),HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Bottom,TextWrapping=TextWrapping.Wrap,IsHitTestVisible=false});
         grid.Children.Add(pointer);

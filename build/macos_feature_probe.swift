@@ -279,7 +279,11 @@ func capture(_ mode: String, global: Bool) throws -> [String: Any] {
         try keyboard(mode == "display" ? 20 : mode == "region" ? 18 : 19, [.maskControl, .maskShift])
     } else { try press(mode == "display" ? "전체 화면" : mode == "region" ? "영역 캡처" : "창 캡처") }
     if mode != "display" {
-        try check(wait(10) { (try? command("/usr/bin/pgrep", ["-x", "screencapture"])) != nil }, "OS interactive capture picker did not start")
+        try check(wait(10) {
+            if mode == "region", let windows = attribute(axApp, kAXWindowsAttribute) as? [AXUIElement],
+               windows.contains(where: { attribute($0, kAXTitleAttribute) as? String == "SnapBerry 영역 선택" }) { return true }
+            return (try? command("/usr/bin/pgrep", ["-x", "screencapture"])) != nil
+        }, "Interactive capture picker did not start")
         pause(1)
         let frame = marker.frame, screen = NSScreen.screens[0].frame
         let left = frame.minX + 25, top = screen.maxY - frame.maxY + 50

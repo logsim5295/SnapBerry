@@ -11,20 +11,23 @@ internal sealed class CapturePointerVisual : FrameworkElement
 {
     private readonly PixelRect screen;
     private readonly CaptureFrame frame;
+    private readonly bool showGuides;
     private PixelPoint? pointer;
     private BitmapSource? sample;
     private Rect sampleDestination;
     private static readonly Pen CrossOutline = FrozenPen(Brushes.Black, 4);
     private static readonly Pen CrossForeground = FrozenPen(Brushes.White, 2);
+    private static readonly Pen GuidePen = FrozenPen(Brushes.IndianRed, 1);
     private static readonly Pen GridPen = FrozenPen(new SolidColorBrush(Color.FromArgb(90, 0, 0, 0)), 0.5);
     private static readonly Pen CenterPen = FrozenPen(Brushes.Gold, 1);
     private static readonly Pen BorderPen = FrozenPen(Brushes.White, 1);
     private static readonly Typeface LabelTypeface = new("Segoe UI");
 
-    public CapturePointerVisual(PixelRect screen, CaptureFrame frame)
+    public CapturePointerVisual(PixelRect screen, CaptureFrame frame, bool showGuides = true)
     {
         this.screen = screen;
         this.frame = frame;
+        this.showGuides = showGuides;
         IsHitTestVisible = false;
         ClipToBounds = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
@@ -32,13 +35,14 @@ internal sealed class CapturePointerVisual : FrameworkElement
 
     public void SetPointer(PixelPoint point)
     {
-        PixelPoint? next = WindowCaptureSelection.Contains(screen, point) ? point : null;
+        var onScreen = WindowCaptureSelection.Contains(screen, point);
+        PixelPoint? next = onScreen || showGuides ? point : null;
         if (pointer == next) return;
         pointer = next;
         sample = null;
-        if (pointer is { } current)
+        if (onScreen)
         {
-            var region = CaptureMagnifier.Sample(current, frame.DesktopBounds);
+            var region = CaptureMagnifier.Sample(point, frame.DesktopBounds);
             sampleDestination = region.Destination;
             if (!region.Source.IsEmpty)
             {
@@ -56,6 +60,14 @@ internal sealed class CapturePointerVisual : FrameworkElement
         // 포인터와 샘플은 물리 픽셀, 표시 크기는 모니터 DPI에 따른 WPF 좌표다.
         var point = new Point((current.X - screen.X) * ActualWidth / screen.Width,
             (current.Y - screen.Y) * ActualHeight / screen.Height);
+        if (showGuides)
+        {
+            if (point.Y >= 0 && point.Y < ActualHeight)
+                drawing.DrawLine(GuidePen, new Point(0, point.Y), new Point(ActualWidth, point.Y));
+            if (point.X >= 0 && point.X < ActualWidth)
+                drawing.DrawLine(GuidePen, new Point(point.X, 0), new Point(point.X, ActualHeight));
+        }
+        if (!WindowCaptureSelection.Contains(screen, current)) return;
         var panel = CaptureMagnifier.Place(point, RenderSize);
         drawing.DrawRectangle(Brushes.Black, BorderPen, panel);
         drawing.PushTransform(new TranslateTransform(panel.X + CaptureMagnifier.Padding, panel.Y + CaptureMagnifier.Padding));

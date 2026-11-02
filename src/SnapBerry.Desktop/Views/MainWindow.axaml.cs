@@ -27,6 +27,7 @@ public sealed partial class MainWindow : Window,IDisposable
     private readonly DesktopEditor editor;private readonly EditorSurface surface;private readonly CaptureLibraryStore store;private readonly AutosaveCoordinator autosave;
     private readonly CaptureCoordinator capture;private readonly string dataDirectory;
     private readonly ILoginStartupService? loginStartup;
+    private readonly MacCaptureService? macCapture;
     private readonly ClipboardCommands clipboardCommands;private readonly GlobalHotkeyService? hotkeys;private DesktopPreferences preferences;
     private bool busy,refreshing,allowClose,closed,syncingProperties;private int historyPages=1,searchVersion;private string? colorBaseline="#E83F56";
     public DesktopEditor Editor=>editor;public bool IsBusy=>busy;
@@ -35,6 +36,8 @@ public sealed partial class MainWindow : Window,IDisposable
     {
         AvaloniaXamlLoader.Load(this);DesktopIcons.Apply(this);this.loginStartup=loginStartup??(OperatingSystem.IsMacOS()?new MacLoginStartupService():null);this.editor=editor;this.dataDirectory=dataDirectory;store=new(Path.Combine(dataDirectory,"Library"));capture=new(captureService);
         clipboardCommands=new(clipboard??new AvaloniaEditorClipboard(()=>this.Clipboard));this.hotkeys=hotkeys;preferences=DesktopPreferences.Load(dataDirectory);if(hotkeys is not null)hotkeys.Pressed+=OnGlobalCapture;
+        macCapture=captureService as MacCaptureService;
+        if(macCapture is not null)macCapture.ShowRegionGuides=preferences.ShowRegionGuides;
         surface=new(editor);surface.SelectionChanged+=RefreshSelection;surface.EditFailed+=error=>Status("편집 실패: "+error.Message);this.FindControl<Panel>("SurfaceHost")!.Children.Add(surface);
         autosave=new(store.SaveAsync);
         autosave.Saved+=(id,token)=>Dispatcher.UIThread.Post(()=>{if(!closed&&editor.CaptureId==id)editor.History?.MarkPersisted(token);});

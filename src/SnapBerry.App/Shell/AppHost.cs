@@ -63,7 +63,7 @@ public sealed class AppHost : IDisposable
         await RunCaptureAsync(async()=>
         {
             await window.FlushAsync();var frame=await capture.CaptureAsync();
-            return await new CaptureCoordinator().SelectAsync(frame,mode);
+            return await new CaptureCoordinator().SelectAsync(frame,mode,window.ShowRegionGuides);
         },async selected=>
         {
             var record=new CaptureRecord{Width=selected.Image.PixelWidth,Height=selected.Image.PixelHeight,Mode=mode,OriginalPng=PngFileWriter.Encode(selected.Image)};

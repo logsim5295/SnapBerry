@@ -6,6 +6,22 @@ namespace SnapBerry.Windows.Tests;
 // 설정 저장·로드와 손상된 JSON의 백업 및 기본값 복구를 검증한다.
 public class SettingsServiceTests
 {
+    [Fact] public void RegionGuidesDefaultOnForNewAndExistingUsersAndRememberOptOut()
+    {
+        var path = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var service = new SettingsService(path);
+            Assert.True(service.Load().ShowRegionGuides);
+            File.WriteAllText(Path.Combine(path, "settings.json"), """{"RegionKey":"Ctrl+Alt+7"}""");
+            var existing = service.Load();
+            Assert.True(existing.ShowRegionGuides);
+            Assert.Equal("Ctrl+Alt+7", existing.RegionKey);
+            service.Save(existing with { ShowRegionGuides = false });
+            Assert.False(service.Load().ShowRegionGuides);
+        }
+        finally { Directory.Delete(path, true); }
+    }
     [Fact] public void CorruptSettingsAreBackedUp()
     {
         var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
