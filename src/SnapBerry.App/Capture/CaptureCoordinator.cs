@@ -21,6 +21,16 @@ public sealed class CaptureCoordinator
         var probing=false;long queriedVersion=-1;
         void DrawSelection(){foreach(var overlay in windows)overlay.SetSelection(current);}
         void DrawPointer(PixelPoint point){foreach(var overlay in windows)overlay.SetPointer(point);}
+        var regionTracker=mode==CaptureMode.Region?new RegionPointerTracker(NativeMethods.TryCursor,DrawRegionPointer):null;
+        void DrawRegionPointer(PixelPoint point)
+        {
+            DrawPointer(point);
+            if(start is { } anchor)
+            {
+                var rect=PixelRect.FromPoints(anchor,point);
+                if(current!=rect){current=rect;DrawSelection();}
+            }
+        }
         void MoveWindowPointer(PixelPoint point)
         {
             if(selection is null||selection.Pointer==point)return;
@@ -54,6 +64,7 @@ public sealed class CaptureCoordinator
         {
             // 마우스·취소·디스플레이 변경이 겹쳐도 한 번만 완료하고 모든 오버레이와 이벤트를 정리한다.
             if(complete)return;complete=true;SystemEvents.DisplaySettingsChanged-=Changed;
+            regionTracker?.Dispose();
             timer.Stop();timer.Tick-=ProbeElements;selection?.Dispose();
             foreach(var window in windows)if(window!=closed)window.Close();
             try{source.TrySetResult(rect is null?null:CaptureService.Crop(frame,rect.Value));}catch(Exception e){source.TrySetException(e);}
@@ -64,13 +75,9 @@ public sealed class CaptureCoordinator
         {
             var b=screen.Bounds;var bounds=new PixelRect(b.X,b.Y,b.Width,b.Height);var crop=CaptureService.Crop(frame,bounds).Image;
             CaptureOverlay window=null!;window=new CaptureOverlay(bounds,crop,()=>Finish(null,window),mode==CaptureMode.Window,frame,showRegionGuides);windows.Add(window);
-            window.MouseLeftButtonDown+=(_,e)=>{var p=NativeMethods.Cursor();DrawPointer(p);if(mode==CaptureMode.Window){MoveWindowPointer(p);Finish(current);e.Handled=true;return;}start=p;window.CaptureMouse();e.Handled=true;};
-            window.MouseMove+=(_,_)=>
-            {
-                var p=NativeMethods.Cursor();DrawPointer(p);if(mode==CaptureMode.Window){MoveWindowPointer(p);return;}
-                else if(start is not null)current=PixelRect.FromPoints(start.Value,p);
-                DrawSelection();
-            };
+            window.MouseLeftButtonDown+=(_,e)=>{var p=NativeMethods.Cursor();if(mode==CaptureMode.Window){DrawPointer(p);MoveWindowPointer(p);Finish(current);e.Handled=true;return;}start=p;window.CaptureMouse();e.Handled=true;};
+            if(mode==CaptureMode.Window)
+                window.MouseMove+=(_,_)=>{if(complete)return;var p=NativeMethods.Cursor();DrawPointer(p);MoveWindowPointer(p);};
             window.MouseWheel+=(_,e)=>
             {
                 if(selection is null)return;
@@ -80,8 +87,9 @@ public sealed class CaptureCoordinator
             window.MouseLeftButtonUp+=(_,_)=>{if(mode==CaptureMode.Region&&start is not null){window.ReleaseMouseCapture();var selection=PixelRect.FromPoints(start.Value,NativeMethods.Cursor());if(selection.Width>0&&selection.Height>0)Finish(selection);else {start=null;current=null;foreach(var overlay in windows)overlay.SetSelection(null);}}};
             window.PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape)Finish(null);};window.Show();
         }
-        DrawPointer(NativeMethods.Cursor());
-        if(selection is not null){MoveWindowPointer(NativeMethods.Cursor());timer.Start();}
+        if(complete)return source.Task;
+        regionTracker?.Start();
+        if(selection is not null){var p=NativeMethods.Cursor();DrawPointer(p);MoveWindowPointer(p);timer.Start();}
         windows.FirstOrDefault()?.Activate();return source.Task;
     }
 }

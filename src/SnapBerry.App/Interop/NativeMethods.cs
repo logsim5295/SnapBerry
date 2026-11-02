@@ -26,20 +26,21 @@ internal static class NativeMethods
     [DllImport("user32.dll")]public static extern bool SetWindowPos(IntPtr hwnd,IntPtr after,int x,int y,int w,int h,uint flags);
     [DllImport("user32.dll",SetLastError=true)]public static extern bool RegisterHotKey(IntPtr hwnd,int id,uint modifiers,uint key);
     [DllImport("user32.dll")]public static extern bool UnregisterHotKey(IntPtr hwnd,int id);
-    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string? className,string title);
+    [DllImport("user32.dll",CharSet=CharSet.Unicode)]public static extern IntPtr FindWindowEx(IntPtr parent,IntPtr after,string? className,string? title);
     [DllImport("user32.dll")]public static extern bool ShowWindow(IntPtr hwnd,int command);
     [DllImport("user32.dll",SetLastError=true)]public static extern bool PostMessage(IntPtr hwnd,int message,IntPtr wParam,IntPtr lParam);
     [DllImport("user32.dll")]public static extern bool SetForegroundWindow(IntPtr hwnd);
     [DllImport("user32.dll")]public static extern void NotifyWinEvent(uint eventId,IntPtr hwnd,int objectId,int childId);
-    public static PixelPoint Cursor(){GetCursorPos(out var p);return new(p.X,p.Y);}
+    public static PixelPoint? TryCursor()=>GetCursorPos(out var p)?new(p.X,p.Y):null;
+    public static PixelPoint Cursor()=>TryCursor()??default;
+    internal static int CloakState(nint window)=>GetDwmIntAttribute(window,14,out var cloaked,sizeof(int))==0?cloaked:0;
     internal static bool IsCaptureCandidate(uint processId,int ownProcessId,bool visible,bool minimized,int cloaked)
         => processId!=ownProcessId&&visible&&!minimized&&cloaked==0;
     public static IReadOnlyList<CaptureWindow> VisibleWindows()
     {
         // WS_VISIBLE이어도 ClickToDo/다른 가상 데스크톱의 창은 DWM에서 숨겨져 있을 수 있다.
         var result=new List<CaptureWindow>();EnumWindows((hwnd,_)=>{GetWindowThreadProcessId(hwnd,out var pid);
-            if(GetDwmIntAttribute(hwnd,14,out var cloaked,sizeof(int))!=0)cloaked=0;
-            if(!IsCaptureCandidate(pid,Environment.ProcessId,IsWindowVisible(hwnd),IsIconic(hwnd),cloaked))return true;
+            if(!IsCaptureCandidate(pid,Environment.ProcessId,IsWindowVisible(hwnd),IsIconic(hwnd),CloakState(hwnd)))return true;
             if(DwmGetWindowAttribute(hwnd,9,out var rect,16)!=0&&!GetWindowRect(hwnd,out rect))return true;
             if(rect.Right>rect.Left&&rect.Bottom>rect.Top)result.Add(new(hwnd,new(rect.Left,rect.Top,rect.Right-rect.Left,rect.Bottom-rect.Top)));return true;},IntPtr.Zero);return result;
     }

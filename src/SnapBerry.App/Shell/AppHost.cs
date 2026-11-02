@@ -62,7 +62,7 @@ public sealed class AppHost : IDisposable
         using var capture=new CaptureSession(new WindowsCaptureDesktop(window));
         await RunCaptureAsync(async()=>
         {
-            await window.FlushAsync();var frame=await capture.CaptureAsync();
+            await window.FlushAsync();var frame=await capture.CaptureAsync(mode);
             return await new CaptureCoordinator().SelectAsync(frame,mode,window.ShowRegionGuides);
         },async selected=>
         {

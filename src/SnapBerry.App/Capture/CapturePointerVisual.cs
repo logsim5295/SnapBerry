@@ -12,9 +12,9 @@ internal sealed class CapturePointerVisual : FrameworkElement
     private readonly PixelRect screen;
     private readonly CaptureFrame frame;
     private readonly bool showGuides;
+    private readonly DrawingVisual horizontal = new(), vertical = new(), cross = new(), magnifier = new();
+    private readonly VisualCollection layers;
     private PixelPoint? pointer;
-    private BitmapSource? sample;
-    private Rect sampleDestination;
     private static readonly Pen CrossOutline = FrozenPen(Brushes.Black, 4);
     private static readonly Pen CrossForeground = FrozenPen(Brushes.White, 2);
     private static readonly Pen GuidePen = FrozenPen(Brushes.IndianRed, 1);
@@ -28,51 +28,72 @@ internal sealed class CapturePointerVisual : FrameworkElement
         this.screen = screen;
         this.frame = frame;
         this.showGuides = showGuides;
+        // 각 선을 별도 노드로 이동해야 두 선의 합집합인 전체 화면이 다시 그려지지 않는다.
+        layers = new VisualCollection(this) { horizontal, vertical, magnifier, cross };
+        cross.Opacity = magnifier.Opacity = horizontal.Opacity = vertical.Opacity = 0;
+        using (var drawing = cross.RenderOpen())
+        {
+            DrawCross(drawing, new Point(), CrossOutline);
+            DrawCross(drawing, new Point(), CrossForeground);
+        }
         IsHitTestVisible = false;
         ClipToBounds = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.NearestNeighbor);
     }
 
-    public void SetPointer(PixelPoint point)
-    {
-        var onScreen = WindowCaptureSelection.Contains(screen, point);
-        PixelPoint? next = onScreen || showGuides ? point : null;
-        if (pointer == next) return;
-        pointer = next;
-        sample = null;
-        if (onScreen)
-        {
-            var region = CaptureMagnifier.Sample(point, frame.DesktopBounds);
-            sampleDestination = region.Destination;
-            if (!region.Source.IsEmpty)
-            {
-                sample = new CroppedBitmap(frame.Image, region.Source);
-                sample.Freeze();
-            }
-        }
-        InvalidateVisual();
-    }
+    protected override int VisualChildrenCount => layers.Count;
+    protected override Visual GetVisualChild(int index) => layers[index];
 
-    protected override void OnRender(DrawingContext drawing)
+    protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
-        base.OnRender(drawing);
-        if (pointer is not { } current || ActualWidth <= 0 || ActualHeight <= 0) return;
-        // 포인터와 샘플은 물리 픽셀, 표시 크기는 모니터 DPI에 따른 WPF 좌표다.
-        var point = new Point((current.X - screen.X) * ActualWidth / screen.Width,
-            (current.Y - screen.Y) * ActualHeight / screen.Height);
+        base.OnRenderSizeChanged(sizeInfo);
         if (showGuides)
         {
-            if (point.Y >= 0 && point.Y < ActualHeight)
-                drawing.DrawLine(GuidePen, new Point(0, point.Y), new Point(ActualWidth, point.Y));
-            if (point.X >= 0 && point.X < ActualWidth)
-                drawing.DrawLine(GuidePen, new Point(point.X, 0), new Point(point.X, ActualHeight));
+            using (var drawing = horizontal.RenderOpen())
+                drawing.DrawLine(GuidePen, new Point(), new Point(RenderSize.Width, 0));
+            using (var drawing = vertical.RenderOpen())
+                drawing.DrawLine(GuidePen, new Point(), new Point(0, RenderSize.Height));
         }
-        if (!WindowCaptureSelection.Contains(screen, current)) return;
+        if (pointer is { } current) PositionLayers(current);
+    }
+
+    public void SetPointer(PixelPoint point)
+    {
+        if (pointer == point) return;
+        pointer = point;
+        PositionLayers(point);
+    }
+
+    private void PositionLayers(PixelPoint current)
+    {
+        if (RenderSize.Width <= 0 || RenderSize.Height <= 0) return;
+        // 포인터와 샘플은 물리 픽셀, 표시 크기는 모니터 DPI에 따른 WPF 좌표다.
+        var point = new Point((current.X - screen.X) * RenderSize.Width / screen.Width,
+            (current.Y - screen.Y) * RenderSize.Height / screen.Height);
+        if (showGuides)
+        {
+            horizontal.Offset = new Vector(0, point.Y);
+            vertical.Offset = new Vector(point.X, 0);
+            horizontal.Opacity = point.Y >= 0 && point.Y < RenderSize.Height ? 1 : 0;
+            vertical.Opacity = point.X >= 0 && point.X < RenderSize.Width ? 1 : 0;
+        }
+        var onScreen = WindowCaptureSelection.Contains(screen, current);
+        cross.Opacity = magnifier.Opacity = onScreen ? 1 : 0;
+        if (!onScreen) return;
+        cross.Offset = (Vector)point;
         var panel = CaptureMagnifier.Place(point, RenderSize);
-        drawing.DrawRectangle(Brushes.Black, BorderPen, panel);
-        drawing.PushTransform(new TranslateTransform(panel.X + CaptureMagnifier.Padding, panel.Y + CaptureMagnifier.Padding));
+        magnifier.Offset = (Vector)panel.TopLeft;
+        using var drawing = magnifier.RenderOpen();
+        drawing.DrawRectangle(Brushes.Black, BorderPen, new Rect(panel.Size));
+        drawing.PushTransform(new TranslateTransform(CaptureMagnifier.Padding, CaptureMagnifier.Padding));
         drawing.DrawRectangle(Brushes.DimGray, null, new Rect(0, 0, CaptureMagnifier.ImageSize, CaptureMagnifier.ImageSize));
-        if (sample is not null) drawing.DrawImage(sample, sampleDestination);
+        var region = CaptureMagnifier.Sample(current, frame.DesktopBounds);
+        if (!region.Source.IsEmpty)
+        {
+            var sample = new CroppedBitmap(frame.Image, region.Source);
+            sample.Freeze();
+            drawing.DrawImage(sample, region.Destination);
+        }
         for (var i = 0; i <= CaptureMagnifier.ImageSize; i += CaptureMagnifier.Zoom)
         {
             drawing.DrawLine(GridPen, new Point(i, 0), new Point(i, CaptureMagnifier.ImageSize));
@@ -86,9 +107,7 @@ internal sealed class CapturePointerVisual : FrameworkElement
         var label = new FormattedText($"{current.X}, {current.Y}  ·  {CaptureMagnifier.Zoom}×", CultureInfo.CurrentCulture,
             FlowDirection.LeftToRight, LabelTypeface, 11, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip)
         { MaxTextWidth = CaptureMagnifier.ImageSize, MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis };
-        drawing.DrawText(label, new Point(panel.X + CaptureMagnifier.Padding, panel.Y + CaptureMagnifier.PanelWidth + 5));
-        DrawCross(drawing, point, CrossOutline);
-        DrawCross(drawing, point, CrossForeground);
+        drawing.DrawText(label, new Point(CaptureMagnifier.Padding, CaptureMagnifier.PanelWidth + 5));
     }
 
     private static void DrawCross(DrawingContext drawing, Point point, Pen pen)

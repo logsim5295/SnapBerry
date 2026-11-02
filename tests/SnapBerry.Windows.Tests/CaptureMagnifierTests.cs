@@ -8,8 +8,35 @@ using Xunit;
 namespace SnapBerry.Windows.Tests;
 
 // 합성 이미지와 메모리 렌더링만 사용한다. 창 표시와 실제 화면 캡처는 하지 않는다.
-public class CaptureMagnifierTests
+public class CaptureMagnifierTests(Xunit.Abstractions.ITestOutputHelper output)
 {
+    [Fact]
+    public void MovingPointerOn4KDisplayKeepsDrawingUpdatesLocal() => Sta.Run(() =>
+    {
+        var bounds = new PixelRect(0, 0, 3840, 2160);
+        var frame = new CaptureFrame(RenderingTests.Image(bounds.Width, bounds.Height), bounds);
+        var visual = new CapturePointerVisual(bounds, frame);
+        visual.Measure(new Size(bounds.Width, bounds.Height));
+        visual.Arrange(new Rect(0, 0, bounds.Width, bounds.Height));
+        visual.SetPointer(new(1000, 500));
+        visual.UpdateLayout();
+        visual.SetPointer(new(1010, 510));
+        visual.UpdateLayout();
+
+        // 개별 WPF 그리기 노드의 경계 합. 두 가이드가 한 노드에 있으면 화면 전체가 갱신 대상이다.
+        static double DrawingArea(Visual node)
+        {
+            var rect = VisualTreeHelper.GetContentBounds(node);
+            var area = rect.IsEmpty ? 0 : rect.Width * rect.Height;
+            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+                area += DrawingArea((Visual)VisualTreeHelper.GetChild(node, i));
+            return area;
+        }
+        var area = DrawingArea(visual);
+        output.WriteLine($"4K pointer drawing bounds: {area:N0} square DIPs");
+        Assert.InRange(area, 1, 100_000);
+    });
+
     [Fact]
     public void SampleUsesPhysicalPixelsOnNegativeOriginDesktop()
     {

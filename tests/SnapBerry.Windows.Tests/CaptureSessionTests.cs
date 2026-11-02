@@ -1,5 +1,6 @@
 using SnapBerry.App.Capture;
 using SnapBerry.App.Shell;
+using SnapBerry.Core;
 using Xunit;
 
 namespace SnapBerry.Windows.Tests;
@@ -7,6 +8,29 @@ namespace SnapBerry.Windows.Tests;
 // OS 창 대신 합성 완료를 지연시키는 경계를 사용해 잔상이 있는 프레임을 읽지 않는지 검증한다.
 public class CaptureSessionTests
 {
+    [Theory]
+    [InlineData(CaptureMode.Region)]
+    [InlineData(CaptureMode.Window)]
+    [InlineData(CaptureMode.Desktop)]
+    public async Task RegionSelectionWaitsForStartMenuToCloseAfterFreezingPixels(CaptureMode mode)
+    {
+        var desktop=new Desktop();
+        var closed=new TaskCompletionSource();
+        desktop.Rendered.SetResult();
+        desktop.StartMenuDismissal=()=>
+        {
+            Assert.Equal(1,desktop.Reads);
+            return closed.Task;
+        };
+        using var session=new CaptureSession(desktop);
+        var capture=session.CaptureAsync(mode);
+        Assert.Equal(mode!=CaptureMode.Region,capture.IsCompleted);
+        Assert.Equal(mode==CaptureMode.Region?1:0,desktop.MenuChecks);
+        closed.SetResult();
+        Assert.Same(desktop.Frame,await capture);
+        Assert.Equal(1,desktop.Reads);
+    }
+
     [Fact]
     public async Task CaptureWaitsForHiddenWindowAndCompositionBeforeReadingPixels()
     {
@@ -62,6 +86,9 @@ public class CaptureSessionTests
         public string? Failure {get;init;}
         public bool Suppressed {get;private set;}
         public int Reads {get;private set;}
+        public int MenuChecks {get;private set;}
+        public Func<Task>? StartMenuDismissal {get;set;}
+        public Func<Task>? GetStartMenuDismissal(){Assert.Equal(0,Reads);MenuChecks++;return StartMenuDismissal;}
         private bool hidden,composed;
         public bool IsEditorVisible=>!hidden||Failure=="visible";
         public IDisposable SuppressTransitions(){Suppressed=true;return new Restore(()=>Suppressed=false);}

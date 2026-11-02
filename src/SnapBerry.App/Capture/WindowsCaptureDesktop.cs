@@ -24,6 +24,7 @@ internal sealed class WindowsCaptureDesktop : ICaptureDesktop
     public void FlushComposition()=>Marshal.ThrowExceptionForHR(NativeMethods.DwmFlush());
     public bool IsEditorVisible=>windows.Any(window=>window.IsVisible||NativeMethods.IsWindowVisible(new WindowInteropHelper(window).Handle));
     public CaptureFrame CaptureDesktop()=>new CaptureService().CaptureDesktop();
+    public Func<Task>? GetStartMenuDismissal()=>StartMenuDismissal.Find();
 
     private sealed class DwmTransitions : IWindowTransitions
     {
