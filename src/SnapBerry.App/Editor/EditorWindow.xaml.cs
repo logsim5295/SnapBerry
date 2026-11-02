@@ -576,6 +576,7 @@ public partial class EditorWindow : Window
         Hide();
     }
     public void CloseForExit(){Model.ClearMagicWand();EndPropertyDrag();SaveHistoryWidth();CloseStickerPicker();allowClose=true;CancelThumbnailRefresh();thumbnailLoader.Dispose();autosave.Dispose();Close();}
+    internal bool ShowRegionGuides => settings.ShowRegionGuides;
     public void ReloadSettings(){settings=settingsService.Load();ThemeResources.Apply(this,settings.Theme);ThemeResources.ApplyToApplication(settings.Theme);InitializeRibbonIcons();UpdateCaptureTooltips();}
     private void UpdateCaptureTooltips()
     {

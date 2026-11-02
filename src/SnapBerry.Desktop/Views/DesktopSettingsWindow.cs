@@ -9,8 +9,9 @@ namespace SnapBerry.Desktop.Views;
 public sealed class DesktopSettingsWindow : Window
 {
     private readonly ComboBox theme;private readonly CheckBox startup;private readonly Button save;private readonly TextBlock status;
-    private readonly Func<bool,bool,Task> apply;
-    public DesktopSettingsWindow(bool dark,bool startAtLogin,bool supportsStartup,Func<bool,bool,Task> apply,string? warning=null)
+    private readonly CheckBox regionGuides;
+    private readonly Func<bool,bool,bool,Task> apply;
+    public DesktopSettingsWindow(bool dark,bool startAtLogin,bool supportsStartup,bool showRegionGuides,Func<bool,bool,bool,Task> apply,string? warning=null)
     {
         this.apply=apply;Title="설정";Width=460;SizeToContent=SizeToContent.Height;CanResize=false;ShowInTaskbar=false;WindowStartupLocation=WindowStartupLocation.CenterOwner;
         var scope=new NameScope();NameScope.SetNameScope(this,scope);
@@ -22,6 +23,9 @@ public sealed class DesktopSettingsWindow : Window
         theme.SelectionChanged+=(_,_)=>RequestedThemeVariant=theme.SelectedIndex==1?Avalonia.Styling.ThemeVariant.Dark:Avalonia.Styling.ThemeVariant.Light;
         startup=new CheckBox{Name="StartAtLoginBox",Content="Mac 로그인 시 실행",IsChecked=startAtLogin,IsEnabled=supportsStartup};scope.Register(startup.Name,startup);panel.Children.Add(startup);
         if(!supportsStartup)panel.Children.Add(new TextBlock{Text="자동 실행은 macOS에서 설정할 수 있습니다.",TextWrapping=TextWrapping.Wrap,Opacity=.7});
+        regionGuides=new CheckBox{Name="ShowRegionGuidesBox",Content="영역 캡처 시 가로·세로 가이드선 표시",IsChecked=showRegionGuides};
+        scope.Register(regionGuides.Name,regionGuides);
+        panel.Children.Add(regionGuides);
         status=new TextBlock{Name="SettingsStatus",Text=warning,Foreground=Brushes.IndianRed,TextWrapping=TextWrapping.Wrap};scope.Register(status.Name,status);panel.Children.Add(status);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Spacing=8,Margin=new Thickness(0,8,0,0)};
         var cancel=new Button{Content="취소",IsCancel=true,MinWidth=76};save=new Button{Name="SaveSettingsButton",Content="저장",IsDefault=true,MinWidth=76};save.Classes.Add("primary");scope.Register(save.Name,save);
@@ -31,7 +35,7 @@ public sealed class DesktopSettingsWindow : Window
     public async Task<bool> TrySaveAsync()
     {
         if(!save.IsEnabled)return false;save.IsEnabled=false;
-        try{await apply(theme.SelectedIndex==1,startup.IsChecked==true);return true;}
+        try{await apply(theme.SelectedIndex==1,startup.IsChecked==true,regionGuides.IsChecked==true);return true;}
         catch(Exception error){status.Text=error.Message;return false;}
         finally{save.IsEnabled=true;}
     }

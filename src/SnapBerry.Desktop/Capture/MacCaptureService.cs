@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Avalonia;
 using SkiaSharp;
 using SnapBerry.Core;
 using SnapBerry.Desktop.Rendering;
@@ -9,9 +10,10 @@ public enum DesktopCaptureMode { Region,Window,Display }
 public interface ICaptureService {Task<byte[]?> CaptureAsync(DesktopCaptureMode mode,CancellationToken cancellationToken=default);}
 public sealed record CaptureProcessResult(int ExitCode,string Error);
 
-public sealed class MacCaptureService(Func<ProcessStartInfo,CancellationToken,Task<CaptureProcessResult>>? runner=null,IScreenRecordingPermission? permission=null,Func<IReadOnlyList<MacDisplay>>? displayProvider=null) : ICaptureService
+public sealed class MacCaptureService(Func<ProcessStartInfo,CancellationToken,Task<CaptureProcessResult>>? runner=null,IScreenRecordingPermission? permission=null,Func<IReadOnlyList<MacDisplay>>? displayProvider=null,Func<CancellationToken,Task<Rect?>>? regionPicker=null) : ICaptureService
 {
     private readonly IScreenRecordingPermission? screenPermission=permission??(runner is null?new MacScreenRecordingPermission():null);
+    public bool ShowRegionGuides { get; set; } = true;
     public async Task<byte[]?> CaptureAsync(DesktopCaptureMode mode,CancellationToken cancellationToken=default)
     {
         if(!Enum.IsDefined(mode))throw new ArgumentOutOfRangeException(nameof(mode));
@@ -28,23 +30,26 @@ public sealed class MacCaptureService(Func<ProcessStartInfo,CancellationToken,Ta
             ValidateDisplays(displays);
             if(displays.Length>1)return await CaptureDesktopAsync(displays,cancellationToken);
         }
+        if(mode==DesktopCaptureMode.Region && ShowRegionGuides)
+        {
+            var region = await (regionPicker ?? MacRegionPicker.PickAsync)(cancellationToken);
+            if(region is null)return null;
+            return await CaptureOneAsync(mode,region,cancellationToken);
+        }
         return await CaptureOneAsync(mode,null,cancellationToken);
     }
-    private async Task<byte[]?> CaptureOneAsync(DesktopCaptureMode mode,MacDisplay? display,CancellationToken cancellationToken)
+    private async Task<byte[]?> CaptureOneAsync(DesktopCaptureMode mode,Rect? bounds,CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var path=Path.Combine(Path.GetTempPath(),"SnapBerry-capture-"+Guid.NewGuid().ToString("N")+".png");
         var start=new ProcessStartInfo("/usr/sbin/screencapture"){UseShellExecute=false,RedirectStandardError=true,CreateNoWindow=true};
         start.ArgumentList.Add("-x");start.ArgumentList.Add("-t");start.ArgumentList.Add("png");
-        if(mode==DesktopCaptureMode.Display)
+        if(bounds is { } rectangle)
         {
-            if(display is not null)
-            {
-                start.ArgumentList.Add("-R");
-                start.ArgumentList.Add(FormattableString.Invariant($"{display.X:R},{display.Y:R},{display.Width:R},{display.Height:R}"));
-            }
-            else start.ArgumentList.Add("-m");
+            start.ArgumentList.Add("-R");
+            start.ArgumentList.Add(FormattableString.Invariant($"{rectangle.X:R},{rectangle.Y:R},{rectangle.Width:R},{rectangle.Height:R}"));
         }
+        else if(mode==DesktopCaptureMode.Display)start.ArgumentList.Add("-m");
         else{start.ArgumentList.Add("-i");start.ArgumentList.Add(mode==DesktopCaptureMode.Region?"-s":"-w");}
         start.ArgumentList.Add(path);
         try
@@ -52,7 +57,7 @@ public sealed class MacCaptureService(Func<ProcessStartInfo,CancellationToken,Ta
             var result=await (runner??RunProcessAsync)(start,cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if(result.ExitCode==0&&File.Exists(path))return await File.ReadAllBytesAsync(path,cancellationToken);
-            if(mode!=DesktopCaptureMode.Display&&result.ExitCode==1&&string.IsNullOrWhiteSpace(result.Error))return null;
+            if(bounds is null&&mode!=DesktopCaptureMode.Display&&result.ExitCode==1&&string.IsNullOrWhiteSpace(result.Error))return null;
             throw new IOException("화면을 캡처하지 못했습니다. 시스템 설정 → 개인정보 보호 및 보안 → 화면 기록에서 SnapBerry 권한을 확인해 주세요. "+result.Error.Trim());
         }
         finally{if(File.Exists(path))File.Delete(path);}
@@ -65,7 +70,7 @@ public sealed class MacCaptureService(Func<ProcessStartInfo,CancellationToken,Ta
             var scale=displays.Max(d=>d.Scale);
             foreach(var display in displays)
             {
-                var bytes=await CaptureOneAsync(DesktopCaptureMode.Display,display,token)??throw new IOException("화면을 캡처하지 못했습니다.");
+                var bytes=await CaptureOneAsync(DesktopCaptureMode.Display,new Rect(display.X,display.Y,display.Width,display.Height),token)??throw new IOException("화면을 캡처하지 못했습니다.");
                 var image=SkiaDocumentRenderer.Decode(bytes);images.Add(image);
                 // Captured pixel dimensions are authoritative, including rotated/scaled Retina modes.
                 scale=Math.Max(scale,Math.Max(image.Width/display.Width,image.Height/display.Height));

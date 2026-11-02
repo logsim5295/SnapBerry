@@ -85,12 +85,12 @@ public class CaptureTests
         {
             Assert.Equal("/usr/sbin/screencapture",start.FileName);Assert.False(start.UseShellExecute);Assert.Contains(argument,start.ArgumentList);
             output=start.ArgumentList.Last();await File.WriteAllBytesAsync(output,EditorTests.Png(),token);return new CaptureProcessResult(0,"");
-        });
+        }) { ShowRegionGuides = false };
         Assert.NotNull(await service.CaptureAsync(mode,TestContext.Current.CancellationToken));Assert.NotNull(output);Assert.False(File.Exists(output));
     }
     [Fact] public async Task CancelPreservesTheCurrentDocumentAndRestoresTheWindow()
     {
-        var service=new MacCaptureService((_,_)=>Task.FromResult(new CaptureProcessResult(1,"")));
+        var service=new MacCaptureService((_,_)=>Task.FromResult(new CaptureProcessResult(1,""))) { ShowRegionGuides = false };
         using var editor=new DesktopEditor();editor.Open(EditorTests.Record());var document=editor.Document;var calls=new List<string>();
         var coordinator=new CaptureCoordinator(service);
         var captured=await coordinator.CaptureAsync(DesktopCaptureMode.Region,editor,()=>{calls.Add("flush");return Task.CompletedTask;},()=>calls.Add("hide"),()=>calls.Add("restore"),TestContext.Current.CancellationToken);
