@@ -9,6 +9,14 @@ public sealed record CaptureRecord
     public DateTimeOffset CapturedAtUtc {get;init;}=DateTimeOffset.UtcNow;public DateTimeOffset UpdatedAtUtc {get;init;}=DateTimeOffset.UtcNow;
     public int Width {get;init;}public int Height {get;init;}public CaptureMode Mode {get;init;}
     public PixelRect? CropBounds {get;init;}
+    public PixelRect? SourceClip {get;init;}
+    public CaptureRecord WithCanvas(AnnotationDocument document)
+    {
+        var source=new PixelRect(0,0,Width,Height);var crop=document.CropBounds;
+        var expanded=document.SourceClip.HasValue||crop.Intersect(source)!=crop||document.Annotations.Any(a=>a.CropClip.HasValue);
+        return this with{SchemaVersion=expanded?3:document.BackgroundAssetHash is null?1:2,
+            CropBounds=crop==source?null:crop,SourceClip=document.SourceClip,ResizeSize=document.ResizeSize,BackgroundAssetHash=document.BackgroundAssetHash};
+    }
     public PixelSize? ResizeSize {get;init;}
     public string? BackgroundAssetHash {get;init;}
     [JsonIgnore] public IEnumerable<string> ReferencedAssetHashes=>Annotations.Where(a=>a.Kind==AnnotationKind.Sticker).Select(a=>a.AssetHash).Concat(BackgroundAssetHash is {} hash?[hash]:[]).Distinct();

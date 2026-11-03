@@ -14,7 +14,8 @@ public sealed class MagicWandSelection : IDisposable
     {
         using var data=SKData.CreateCopy(png);using var codec=SKCodec.Create(data)??throw new InvalidDataException("이미지를 읽을 수 없습니다.");
         Width=codec.Info.Width;Height=codec.Info.Height;ImageDimensions.GuardSize(Width,Height);
-        if(!CropPlacement.IsWithin(bounds,Width,Height))throw new ArgumentOutOfRangeException(nameof(bounds));this.bounds=bounds;
+        if(bounds!=default&&!CropPlacement.IsValidCanvas(bounds))throw new ArgumentOutOfRangeException(nameof(bounds));
+        this.bounds=bounds.Intersect(new(0,0,Width,Height));
         using var space=SKColorSpace.CreateSrgb();using var image=new SKBitmap(new SKImageInfo(Width,Height,SKColorType.Rgba8888,SKAlphaType.Unpremul,space));
         if(codec.GetPixels(image.Info,image.GetPixels())!=SKCodecResult.Success)throw new InvalidDataException("이미지가 손상되었습니다.");
         pixels=new byte[checked(Width*Height*4)];Marshal.Copy(image.GetPixels(),pixels,0,pixels.Length);mask=new byte[Width*Height];

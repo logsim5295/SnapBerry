@@ -51,7 +51,7 @@ public sealed class ClipboardImageSource : IClipboardImageSource
                 var value=JsonSerializer.Deserialize<Annotation>(json);
                 if(value is {Kind:AnnotationKind.Rectangle or AnnotationKind.Arrow or AnnotationKind.Sticker})
                 {
-                    CaptureLibraryStore.Validate(new(){Width=1,Height=1,Annotations=[value]});
+                    CaptureLibraryStore.Validate(new(){SchemaVersion=3,Width=1,Height=1,Annotations=[value]});
                     if(value.StickerId is null||value.Style.Color is null||value.Style.Fill is null||value.Style.TextColor is null)
                         throw new InvalidDataException("Invalid annotation strings.");
                     CompositeRenderer.Brush(value.Style.Color);CompositeRenderer.Brush(value.Style.Fill);CompositeRenderer.Brush(value.Style.TextColor);

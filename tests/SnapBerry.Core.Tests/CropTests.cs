@@ -10,6 +10,11 @@ public class CropTests
     [InlineData(100,0,80,10,0,10,80,70)]
     [InlineData(0,80,20,60,20,0,80,60)]
     [InlineData(100,80,80,60,0,0,80,60)]
+    [InlineData(0,0,-12,-8,-12,-8,112,88)]
+    [InlineData(100,0,112,-8,0,-8,112,88)]
+    [InlineData(0,80,-12,88,-12,0,112,88)]
+    [InlineData(100,80,112,88,0,0,112,88)]
+    [InlineData(0,0,-12,8,-12,8,112,72)]
     public void FourCornersKeepTheOppositeCornerFixed(int sx,int sy,int x,int y,int left,int top,int width,int height)
     {
         var gesture=new CropPlacement();
@@ -33,7 +38,7 @@ public class CropTests
         Assert.Null(gesture.PointerUp(new(4,4)));
     }
 
-    [Fact] public void DragClampsToImageAndAtLeastOnePixel()
+    [Fact] public void DragPastOppositeCornerKeepsAtLeastOnePixel()
     {
         var gesture=new CropPlacement();gesture.PointerDown(100,80,new(0,0),10);
         Assert.Equal(new PixelRect(99,79,1,1),gesture.PointerUp(new(999,999)));
@@ -55,12 +60,22 @@ public class CropTests
         history.Undo();Assert.Equal(new PixelRect(20,10,60,50),doc.CropBounds);Assert.Equal(annotation,doc.Annotations.Single());
     }
 
-    [Fact] public void EmptyAndOutOfBoundsCropsDoNotChangeHistory()
+    [Fact] public void EmptyAndOversizedCropsDoNotChangeHistory()
     {
         var doc=new AnnotationDocument(100,80);var history=new CommandHistory(doc);var token=history.CurrentStateToken;
         history.Crop(new(0,0,100,80));Assert.False(history.CanUndo);
-        foreach(var invalid in new[]{new PixelRect(0,0,0,10),new(-1,0,10,10),new(99,0,2,10),new(1,0,int.MaxValue,10)})
+        foreach(var invalid in new[]{new PixelRect(0,0,0,10),new(0,0,10000,10000),new(1,0,int.MaxValue,10)})
             Assert.Throws<ArgumentOutOfRangeException>(()=>history.Crop(invalid));
         Assert.Equal(token,history.CurrentStateToken);Assert.False(history.CanUndo);
+    }
+
+    [Fact] public void OversizedExpansionAfterResizeLeavesDocumentAndHistoryIntact()
+    {
+        var doc=new AnnotationDocument(100,80);var history=new CommandHistory(doc);
+        history.Resize(new(1000,800));var token=history.CurrentStateToken;
+        Assert.Throws<ArgumentOutOfRangeException>(()=>history.Crop(new(0,0,5000,80)));
+        Assert.Equal(new PixelRect(0,0,100,80),doc.CropBounds);
+        Assert.Equal(new PixelSize(1000,800),doc.OutputSize);
+        Assert.Equal(token,history.CurrentStateToken);
     }
 }

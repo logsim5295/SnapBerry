@@ -83,6 +83,8 @@ public class HistoryClipboardTests
                 Style=new(){Color="#139887",Thickness=8,LineStyle=StrokePattern.DashDot}};
             selected=selected with{Width=kind==AnnotationKind.Arrow?-40:40,Height=30};
             if(kind==AnnotationKind.Sticker)window.Model.History!.Replace(selected);else window.Model.History!.Add(selected);
+            window.Model.InsertImage(PngFileWriter.Encode(Solid(220,20,Colors.Red)));
+            selected=window.Model.Document!.Annotations.Single(item=>item.Id==selected.Id);
             window.Model.SelectedId=selected.Id;var token=window.Model.History!.CurrentStateToken;
             ApplicationCommands.Copy.Execute(null,window);WaitUntilIdle(window);
             Assert.True(clipboard.Data!.GetDataPresent("SnapBerry.AnnotationObject.v1",false));
@@ -96,6 +98,7 @@ public class HistoryClipboardTests
             Assert.Equal((selected.Width,selected.Height),(pasted.Width,pasted.Height));Assert.Equal(selected.Style,pasted.Style);
             Assert.Equal((100d,60d),(pasted.X+pasted.Width/2,pasted.Y+pasted.Height/2));
             Assert.Equal(selected.StickerId,pasted.StickerId);Assert.Equal(selected.Text,pasted.Text);
+            Assert.Equal(selected.CropClip,pasted.CropClip);
             if(kind==AnnotationKind.Sticker)Assert.NotNull(window.Model.Assets.GetBitmap(pasted.AssetHash));
             window.Model.History!.Undo();Assert.Empty(window.Model.Document.Annotations);
             window.Model.History.Redo();Assert.Equal(pasted,Assert.Single(window.Model.Document.Annotations));
@@ -165,6 +168,34 @@ public class HistoryClipboardTests
         Assert.Equal(new Rect(49.75,49.75,.5,.5),visual.Drawing.Bounds);
     });
 
+    [Fact] public void ImageExpansionPreservesOutputScaleAndPreviouslyCroppedPixels()=>Sta.Run(()=>
+    {
+        var model=new EditorViewModel();
+        model.Open(new(){Width=100,Height=80,OriginalPng=PngFileWriter.Encode(Solid(100,80,Colors.Blue))});
+        model.CropTo(new(20,10,40,30));
+        model.History!.Resize(new(80,60));
+        model.InsertImage(PngFileWriter.Encode(Solid(120,20,Colors.Red)));
+        model.Open(model.Snapshot());
+        Assert.Equal(new PixelRect(10,10,60,30),model.Document!.CropBounds);
+        var image=model.Composite()!;
+        Assert.Equal((120,60),(image.PixelWidth,image.PixelHeight));
+        Assert.Equal(0,Pixel(image,4,4)[3]);
+        Assert.Equal(new byte[]{0,0,255,255},Pixel(image,4,30));
+        Assert.Equal(new byte[]{255,0,0,255},Pixel(image,24,4));
+    });
+
+    [Fact] public void OversizedExpansionRejectsThePasteBeforeChangingAssetsOrSelection()=>Sta.Run(()=>
+    {
+        var model=new EditorViewModel();
+        model.Open(new(){Width=1000,Height=100,OriginalPng=PngFileWriter.Encode(Solid(1000,100,Colors.Blue))});
+        var token=model.History!.CurrentStateToken;
+        var png=PngFileWriter.Encode(Solid(1,1,Colors.Red));
+        Assert.Throws<ArgumentOutOfRangeException>(()=>model.InsertImage(png,new(1,30000)));
+        Assert.Equal(token,model.History.CurrentStateToken);
+        Assert.Equal(new PixelSize(1000,100),model.Document!.OutputSize);
+        Assert.Empty(model.Assets.Data);Assert.Empty(model.Document.Annotations);Assert.Null(model.SelectedId);
+    });
+
     [Theory] [InlineData(false)] [InlineData(true)]
     public void PastedImagesUseCanvasMoveResizeAndDeleteWithUndo(bool resize)=>Sta.Run(()=>
     {
@@ -174,10 +205,27 @@ public class HistoryClipboardTests
         void Field(string name,object value)=>typeof(EditorCanvas).GetField(name,BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(canvas,value);
         Field("before",pasted);Field("preview",pasted);Field("start",new PixelPoint(30,30));Field("dragging",true);Field("resizing",resize);
         var end=resize?new PixelPoint(110,70):new PixelPoint(40,35);
-        canvas.MoveAnnotation(end);canvas.FinishAnnotation(end);
+        canvas.MoveAnnotation(end);
+        if(resize)
+        {
+            var host=new Grid{Width=150,Height=110};
+            host.Children.Add(canvas);host.Measure(new(150,110));host.Arrange(new(0,0,150,110));
+            var preview=new RenderTargetBitmap(150,110,96,96,PixelFormats.Pbgra32);
+            preview.Render(host);
+            Assert.Equal(new byte[]{0,0,255,255},Pixel(preview,130,60));
+            Assert.Equal(new PixelSize(100,80),model.Document!.OutputSize);
+        }
+        canvas.FinishAnnotation(end);
         var changed=Assert.Single(model.Document!.Annotations);
         Assert.Equal(resize?(30d,30d,80d,40d):(40d,35d,40d,20d),(changed.X,changed.Y,changed.Width,changed.Height));
+        Assert.Equal(new PixelSize(resize?110:100,80),model.Document.OutputSize);
+        if(resize)
+        {
+            Assert.Equal(0,Pixel(model.Composite()!,105,5)[3]);
+            Assert.Equal(new byte[]{0,0,255,255},Pixel(model.Composite()!,105,45));
+        }
         model.History!.Undo();Assert.Equal(pasted,Assert.Single(model.Document.Annotations));
+        Assert.Equal(new PixelSize(100,80),model.Document.OutputSize);
         model.History.Redo();Assert.Equal(changed,Assert.Single(model.Document.Annotations));
         canvas.DeleteSelected();Assert.Empty(model.Document.Annotations);model.History.Undo();Assert.Equal(changed,Assert.Single(model.Document.Annotations));
     });
@@ -399,7 +447,7 @@ public class HistoryClipboardTests
         finally{window.CloseForExit();TestFiles.DeleteDirectory(path);}
     });
 
-    [Fact] public void OversizedPastedImageFitsTheCanvasWithoutDistortingItsAspectRatio()=>Sta.Run(()=>
+    [Fact] public void OversizedPastedImageExpandsTheCanvasAtItsOriginalSize()=>Sta.Run(()=>
     {
         var path=Path.Combine(Path.GetTempPath(),"SnapBerry-paste-"+Guid.NewGuid().ToString("N"));
         var window=new EditorWindow(new(Path.Combine(path,"Library")),new SettingsService(path),clipboardImages:new ClipboardSource(Solid(400,200,Colors.Red)));
@@ -407,7 +455,11 @@ public class HistoryClipboardTests
         {
             window.Model.Open(new(){Width=100,Height=80,OriginalPng=PngFileWriter.Encode(Solid(100,80,Colors.Blue))});
             Pump(window.PasteImageAsync());var pasted=Assert.Single(window.Model.Document!.Annotations);
-            Assert.Equal((0d,15d,100d,50d),(pasted.X,pasted.Y,pasted.Width,pasted.Height));
+            Assert.Equal((-150d,-60d,400d,200d),(pasted.X,pasted.Y,pasted.Width,pasted.Height));
+            Assert.Equal(new PixelRect(-150,-60,400,200),window.Model.Document.CropBounds);
+            window.Model.History!.Undo();
+            Assert.Empty(window.Model.Document.Annotations);
+            Assert.Equal(new PixelSize(100,80),window.Model.Document.OutputSize);
         }
         finally{window.CloseForExit();TestFiles.DeleteDirectory(path);}
     });

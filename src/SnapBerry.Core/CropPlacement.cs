@@ -10,6 +10,8 @@ public sealed class CropPlacement
     public PixelRect? Preview {get;private set;}
     public bool Active=>Corner is not null;
     public static bool IsWithin(PixelRect rect,int width,int height)=>rect.X>=0&&rect.Y>=0&&rect.Width>0&&rect.Height>0&&(long)rect.X+rect.Width<=width&&(long)rect.Y+rect.Height<=height;
+    public static bool IsValidCanvas(PixelRect rect)=>ImageDimensions.IsSupported(rect.Width,rect.Height)
+        &&rect.X>int.MinValue&&rect.Y>int.MinValue&&(long)rect.X+rect.Width<=int.MaxValue&&(long)rect.Y+rect.Height<=int.MaxValue;
 
     public static CropCorner? HitCorner(int width,int height,PixelPoint point,double tolerance,double scaleX=1,double scaleY=1)
     {
@@ -28,15 +30,15 @@ public sealed class CropPlacement
 
     public void Move(PixelPoint point)
     {
-        // 선택한 꼭짓점만 움직이고 반대편은 고정한다. 결과는 이미지 내부의 최소 1픽셀이다.
+        // 반대쪽 꼭짓점을 고정하고 원본 밖까지 늘릴 수 있다. 반대편을 지나도 1픽셀은 남긴다.
         if(Corner is not CropCorner corner||!double.IsFinite(point.X)||!double.IsFinite(point.Y))return;
         var fromLeft=corner is CropCorner.TopLeft or CropCorner.BottomLeft;
         var fromTop=corner is CropCorner.TopLeft or CropCorner.TopRight;
-        var x=(int)Math.Round(Math.Clamp((fromLeft?0:bounds.Width)+point.X-pressed.X,0,bounds.Width));
-        var y=(int)Math.Round(Math.Clamp((fromTop?0:bounds.Height)+point.Y-pressed.Y,0,bounds.Height));
-        var left=fromLeft?Math.Min(x,bounds.Width-1):0;var top=fromTop?Math.Min(y,bounds.Height-1):0;
-        var right=fromLeft?bounds.Width:Math.Max(1,x);var bottom=fromTop?bounds.Height:Math.Max(1,y);
-        Preview=new(left,top,right-left,bottom-top);
+        var dx=point.X-pressed.X;var dy=point.Y-pressed.Y;
+        var width=(int)Math.Clamp(Math.Round(bounds.Width+(fromLeft?-dx:dx)),1,int.MaxValue);
+        var height=(int)Math.Clamp(Math.Round(bounds.Height+(fromTop?-dy:dy)),1,int.MaxValue);
+        if(ImageDimensions.IsSupported(width,height))
+            Preview=new(fromLeft?bounds.Width-width:0,fromTop?bounds.Height-height:0,width,height);
     }
 
     public PixelRect? PointerUp(PixelPoint point)

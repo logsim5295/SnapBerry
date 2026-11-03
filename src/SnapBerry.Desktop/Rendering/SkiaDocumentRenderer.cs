@@ -26,12 +26,21 @@ public static class SkiaDocumentRenderer
         using var colorSpace=SKColorSpace.CreateSrgb();
         using var output=new SKBitmap(new SKImageInfo(size.Width,size.Height,SKColorType.Bgra8888,SKAlphaType.Premul,colorSpace));using var canvas=new SKCanvas(output);canvas.Clear(SKColors.Transparent);
         canvas.Scale((float)size.Width/document.Width,(float)size.Height/document.Height);canvas.Translate(-document.CropBounds.X,-document.CropBounds.Y);
+        canvas.Save();
+        if(document.SourceClip is PixelRect clip)canvas.ClipRect(SKRect.Create(clip.X,clip.Y,clip.Width,clip.Height));
         using var imagePaint=new SKPaint{IsAntialias=true};canvas.DrawBitmap(mosaic,0,0,imagePaint);
+        canvas.Restore();
         foreach(var item in document.Annotations.Where(a=>a.Kind!=AnnotationKind.Mosaic))Draw(canvas,item,assets);
         return Encode(output);
     }
     public static void Draw(SKCanvas canvas,Annotation a,IReadOnlyDictionary<string,byte[]> assets)
     {
+        using var restore=new SKAutoCanvasRestore(canvas,a.CropClip.HasValue);
+        if(a.CropClip is {} clip)
+        {
+            var b=clip.Bounds(a);
+            canvas.ClipRect(SKRect.Create((float)b.X,(float)b.Y,(float)b.Width,(float)b.Height));
+        }
         var x=(float)a.X;var y=(float)a.Y;var w=(float)a.Width;var h=(float)a.Height;
         using var paint=new SKPaint{Color=Color(a.Style.Color),StrokeWidth=(float)a.Style.Thickness,IsAntialias=true,Style=SKPaintStyle.Stroke,StrokeCap=SKStrokeCap.Round,StrokeJoin=SKStrokeJoin.Round};
         using var dash=a.Style.LineStyle switch

@@ -6,6 +6,7 @@ namespace SnapBerry.Desktop.Editing;
 public sealed class EditorGesture(DesktopEditor editor)
 {
     private PixelPoint start;private Annotation? original;private bool resize;private readonly ShapePlacement shape=new();
+    private readonly CropPlacement cropCorner=new();
     public Annotation? Preview {get;private set;}public PixelRect? CropPreview {get;private set;}
     public string Text {get;set;}="텍스트";public int MosaicSize {get;set;}=12;
     public bool Active {get;private set;}
@@ -41,7 +42,12 @@ public sealed class EditorGesture(DesktopEditor editor)
         else if(editor.Tool==DesktopTool.Text)
         {if(!string.IsNullOrWhiteSpace(Text))editor.Commit(new(){Kind=AnnotationKind.Text,X=point.X,Y=point.Y,Text=Text,Style=editor.Style});Cancel();}
         else if(editor.Tool==DesktopTool.Number){editor.InsertStep(point);Cancel();}
-        else if(editor.Tool==DesktopTool.Crop)CropPreview=new((int)point.X,(int)point.Y,1,1);
+        else if(editor.Tool==DesktopTool.Crop)
+        {
+            var bounds=editor.Document.CropBounds;
+            CropPreview=cropCorner.PointerDown(bounds.Width,bounds.Height,new(point.X-bounds.X,point.Y-bounds.Y),tolerance)
+                ?bounds:new((int)point.X,(int)point.Y,1,1);
+        }
     }
     public void Move(PixelPoint point)
     {
@@ -56,7 +62,13 @@ public sealed class EditorGesture(DesktopEditor editor)
         else if(shape.Active){shape.Move(point);Preview=shape.Preview is Annotation a?a with{MosaicBlockSize=MosaicSize}:null;}
         else if(editor.Tool==DesktopTool.Crop&&editor.Document is AnnotationDocument doc)
         {
-            var crop=doc.CropBounds;var a=new PixelPoint(Math.Clamp(start.X,crop.X,crop.X+crop.Width),Math.Clamp(start.Y,crop.Y,crop.Y+crop.Height));
+            var crop=doc.CropBounds;
+            if(cropCorner.Active)
+            {
+                cropCorner.Move(new(point.X-crop.X,point.Y-crop.Y));
+                CropPreview=cropCorner.Preview?.Translate(crop.X,crop.Y);return;
+            }
+            var a=new PixelPoint(Math.Clamp(start.X,crop.X,crop.X+crop.Width),Math.Clamp(start.Y,crop.Y,crop.Y+crop.Height));
             var b=new PixelPoint(Math.Clamp(point.X,crop.X,crop.X+crop.Width),Math.Clamp(point.Y,crop.Y,crop.Y+crop.Height));CropPreview=PixelRect.FromPoints(a,b);
         }
     }
@@ -69,5 +81,5 @@ public sealed class EditorGesture(DesktopEditor editor)
         else if(CropPreview is PixelRect crop&&crop.Width>0&&crop.Height>0&&editor.Document is AnnotationDocument doc)editor.History!.Crop(crop.Translate(-doc.CropBounds.X,-doc.CropBounds.Y));
         Cancel();
     }
-    public void Cancel(){original=null;Preview=null;CropPreview=null;Active=false;resize=false;shape.Cancel();}
+    public void Cancel(){original=null;Preview=null;CropPreview=null;Active=false;resize=false;shape.Cancel();cropCorner.Cancel();}
 }

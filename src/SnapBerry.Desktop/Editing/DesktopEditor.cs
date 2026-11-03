@@ -26,7 +26,7 @@ public sealed partial class DesktopEditor : IDisposable
         CaptureLibraryStore.Validate(value);CaptureLibraryStore.ValidateImageAssetSizes(value.OriginalPng.LongLength,value.StickerAssets.Values.Select(a=>a.LongLength));
         ImageDimensions.GuardSize(value.Width,value.Height);using var image=SkiaDocumentRenderer.Decode(value.OriginalPng);
         if(image.Width!=value.Width||image.Height!=value.Height||!CaptureName.IsValid(value.Name))throw new InvalidDataException("이미지 정보가 올바르지 않습니다.");
-        var document=new AnnotationDocument(value.Width,value.Height){CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),ResizeSize=value.ResizeSize,Sequence=value.Sequence,BackgroundAssetHash=value.BackgroundAssetHash};
+        var document=new AnnotationDocument(value.Width,value.Height){CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),SourceClip=value.SourceClip,ResizeSize=value.ResizeSize,Sequence=value.Sequence,BackgroundAssetHash=value.BackgroundAssetHash};
         document.Annotations.AddRange(value.Annotations);var nextAssets=value.StickerAssets.ToDictionary(pair=>pair.Key,pair=>pair.Value.ToArray());
         foreach(var a in document.Annotations.Where(a=>a.Kind==AnnotationKind.Sticker))
         {
@@ -69,17 +69,16 @@ public sealed partial class DesktopEditor : IDisposable
         using var bitmap=SkiaDocumentRenderer.Decode(png);var normalized=SkiaDocumentRenderer.Encode(bitmap);var hash=Convert.ToHexString(SHA256.HashData(normalized)).ToLowerInvariant();
         var sizes=Document.ReferencedAssetHashes.ToDictionary(key=>key,key=>assets[key].LongLength);sizes[hash]=normalized.LongLength;
         CaptureLibraryStore.ValidateImageAssetSizes(record!.OriginalPng.LongLength,sizes.Values);
-        var output=Document.OutputSize;var ratio=Math.Min(1,Math.Min((double)output.Width/bitmap.Width,(double)output.Height/bitmap.Height));
-        var width=(outputSize?.Width??bitmap.Width*ratio)*Document.Width/output.Width;var height=(outputSize?.Height??bitmap.Height*ratio)*Document.Height/output.Height;
-        if(!double.IsFinite(width)||!double.IsFinite(height)||width<=0||height<=0||width>1000000||height>1000000)throw new InvalidDataException("붙여넣을 이미지의 표시 크기가 너무 큽니다.");
-        assets[hash]=normalized;Commit(new(){Kind=AnnotationKind.Sticker,StickerId=stickerId,Text=text,AssetHash=hash,X=Document.CropBounds.X+(Document.Width-width)/2,Y=Document.CropBounds.Y+(Document.Height-height)/2,Width=width,Height=height});
+        var size=outputSize??new ImageObjectSize(bitmap.Width,bitmap.Height);
+        var annotation=ImagePlacement.Center(Document,new(){Kind=AnnotationKind.Sticker,StickerId=stickerId,Text=text,AssetHash=hash},size.Width,size.Height);
+        History.Add(annotation,()=>{assets[hash]=normalized;SelectedId=annotation.Id;});
     }
     public void Rename(string value){if(record is null)return;record=record with{Name=CaptureName.Normalize(value)};Changed?.Invoke(this,EventArgs.Empty);}
     public CaptureRecord Snapshot()
     {
         if(record is null||Document is null)throw new InvalidOperationException("열린 이미지가 없습니다.");
         var hashes=Document.ReferencedAssetHashes;
-        return record with{SchemaVersion=Document.BackgroundAssetHash is null?1:2,BackgroundAssetHash=Document.BackgroundAssetHash,UpdatedAtUtc=DateTimeOffset.UtcNow,CropBounds=Document.CropBounds==new PixelRect(0,0,record.Width,record.Height)?null:Document.CropBounds,ResizeSize=Document.ResizeSize,Annotations=Document.Annotations.ToArray(),Sequence=Document.Sequence,StickerAssets=hashes.ToDictionary(h=>h,h=>assets[h])};
+        return record.WithCanvas(Document) with{UpdatedAtUtc=DateTimeOffset.UtcNow,Annotations=Document.Annotations.ToArray(),Sequence=Document.Sequence,StickerAssets=hashes.ToDictionary(h=>h,h=>assets[h])};
     }
     public byte[] RenderPng()=>composite??=SkiaDocumentRenderer.Render(record!.OriginalPng,Document!,assets);
     public async Task SaveAsync(CaptureLibraryStore store)

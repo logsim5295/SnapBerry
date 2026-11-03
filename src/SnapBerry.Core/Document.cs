@@ -10,6 +10,13 @@ public readonly record struct PixelRect(int X,int Y,int Width,int Height)
 {
     public static PixelRect FromPoints(PixelPoint a,PixelPoint b) => new((int)Math.Floor(Math.Min(a.X,b.X)),(int)Math.Floor(Math.Min(a.Y,b.Y)),(int)Math.Ceiling(Math.Abs(a.X-b.X)),(int)Math.Ceiling(Math.Abs(a.Y-b.Y)));
     public PixelRect Translate(int x,int y) => this with { X=X+x,Y=Y+y };
+    public PixelRect Intersect(PixelRect other)
+    {
+        var left=Math.Max(X,other.X);var top=Math.Max(Y,other.Y);
+        var right=Math.Min((long)X+Width,(long)other.X+other.Width);
+        var bottom=Math.Min((long)Y+Height,(long)other.Y+other.Height);
+        return right<=left||bottom<=top?default:new(left,top,(int)(right-left),(int)(bottom-top));
+    }
 }
 // 원본 좌표와 화면 좌표 사이의 확대 및 평행 이동을 표현한다.
 public readonly record struct ViewTransform(double Zoom,double X,double Y)
@@ -27,6 +34,26 @@ public sealed record Annotation
     public string Text {get;init;}="";public int MosaicBlockSize {get;init;}=12;
     public string StickerId {get;init;}="";public string AssetHash {get;init;}="";
     public AnnotationStyle Style {get;init;}=new();
+    public AnnotationClip? CropClip {get;init;}
+}
+
+// 주석 자체를 자른 경계는 주석의 이동과 크기 변경을 따라가야 한다.
+public readonly record struct AnnotationClip(double Left,double Top,double Right,double Bottom)
+{
+    public static AnnotationClip FromCanvas(Annotation a,PixelRect canvas)
+    {
+        var w=Math.Max(1,Math.Abs(a.Width));var h=Math.Max(1,Math.Abs(a.Height));
+        var clip=new AnnotationClip((canvas.X-a.X)/w,(canvas.Y-a.Y)/h,
+            (canvas.X+canvas.Width-a.X)/w,(canvas.Y+canvas.Height-a.Y)/h);
+        if(a.CropClip is not {} old)return clip;
+        var left=Math.Max(clip.Left,old.Left);var top=Math.Max(clip.Top,old.Top);
+        return new(left,top,Math.Max(left,Math.Min(clip.Right,old.Right)),Math.Max(top,Math.Min(clip.Bottom,old.Bottom)));
+    }
+    public (double X,double Y,double Width,double Height) Bounds(Annotation a)
+    {
+        var w=Math.Max(1,Math.Abs(a.Width));var h=Math.Max(1,Math.Abs(a.Height));
+        return (a.X+Left*w,a.Y+Top*h,(Right-Left)*w,(Bottom-Top)*h);
+    }
 }
 // 숫자·소문자·대문자는 각각 독립된 다음 순번을 유지한다.
 public sealed record StepSequenceState
@@ -68,9 +95,11 @@ public sealed class AnnotationDocument(int width,int height)
     public PixelRect CropBounds
     {
         get=>cropBounds;
-        set{if(!CropPlacement.IsWithin(value,SourceWidth,SourceHeight))throw new ArgumentOutOfRangeException(nameof(value));cropBounds=value;}
+        set{if(!CropPlacement.IsValidCanvas(value))throw new ArgumentOutOfRangeException(nameof(value));cropBounds=value;}
     }
     public int Width=>CropBounds.Width;public int Height=>CropBounds.Height;
+    public PixelRect? SourceClip {get;set;}
+    public PixelRect VisibleSource=>(SourceClip??new PixelRect(0,0,SourceWidth,SourceHeight)).Intersect(CropBounds);
     private PixelSize? resizeSize;
     public PixelSize? ResizeSize {get=>resizeSize;set{if(value is PixelSize size)ImageResize.Validate(size);resizeSize=value;}}
     public PixelSize OutputSize=>ResizeSize??new(Width,Height);

@@ -15,6 +15,7 @@ public sealed class EditorSurface : Control,IDisposable
 {
     private readonly DesktopEditor editor;private readonly EditorGesture gesture;private Bitmap? bitmap;private Annotation? lastPreview;
     private Bitmap? wandOverlay;
+    private Bitmap? draggedImage;
     private static readonly ImageBrush checker=new(new Bitmap(new MemoryStream(SnapBerry.Imaging.MagicWandSelection.CheckerboardPng())))
     {TileMode=TileMode.Tile,DestinationRect=new RelativeRect(0,0,16,16,RelativeUnit.Absolute),Stretch=Stretch.None};
     private bool pointerDown,panning;private Point panPosition;private double zoom=1;
@@ -27,10 +28,11 @@ public sealed class EditorSurface : Control,IDisposable
     public EditorSurface(DesktopEditor editor)
     {this.editor=editor;gesture=new(editor);Focusable=true;ClipToBounds=true;editor.Changed+=Changed;editor.MagicWandChanged+=Changed;Refresh();}
     private void Changed(object? sender,EventArgs args)=>Refresh();
-    public void CancelGesture(){gesture.Cancel();pointerDown=false;panning=false;Refresh();}
+    public void CancelGesture(){gesture.Cancel();ClipToBounds=true;pointerDown=false;panning=false;Refresh();}
     public void Refresh()
     {
         bitmap?.Dispose();bitmap=null;lastPreview=null;wandOverlay?.Dispose();wandOverlay=null;
+        draggedImage?.Dispose();draggedImage=null;
         if(editor.Document is AnnotationDocument doc)
         {Width=doc.OutputSize.Width*Zoom;Height=doc.OutputSize.Height*Zoom;bitmap=new Bitmap(new MemoryStream(editor.RenderPng()));}
         else{Width=0;Height=0;}
@@ -44,12 +46,30 @@ public sealed class EditorSurface : Control,IDisposable
         base.Render(context);if(editor.Document is not AnnotationDocument doc||bitmap is null)return;
         if(gesture.Preview!=lastPreview)
         {
-            var preview=new AnnotationDocument(doc.SourceWidth,doc.SourceHeight){CropBounds=doc.CropBounds,ResizeSize=doc.ResizeSize,BackgroundAssetHash=doc.BackgroundAssetHash};
+            var preview=new AnnotationDocument(doc.SourceWidth,doc.SourceHeight){CropBounds=doc.CropBounds,SourceClip=doc.SourceClip,ResizeSize=doc.ResizeSize,BackgroundAssetHash=doc.BackgroundAssetHash};
             preview.Annotations.AddRange(doc.Annotations.Select(a=>a.Id==gesture.Preview?.Id?gesture.Preview:a));
             if(gesture.Preview is Annotation extra&&!doc.Annotations.Any(a=>a.Id==extra.Id))preview.Annotations.Add(extra);
             bitmap.Dispose();bitmap=new Bitmap(new MemoryStream(gesture.Preview is null?editor.RenderPng():SkiaDocumentRenderer.Render(editor.Snapshot().OriginalPng,preview,editor.Assets)));lastPreview=gesture.Preview;
         }
-        if(doc.BackgroundAssetHash is not null)context.DrawRectangle(checker,null,new Rect(0,0,Width,Height));
+        if(gesture.CropPreview is PixelRect area)
+            context.DrawRectangle(checker,null,ViewRect(area.X,area.Y,area.Width,area.Height));
+        var canvasRect=new Rect(0,0,Width,Height);
+        var imageOverflows=false;
+        if(gesture.Preview is {} moving&&ImagePlacement.IsInsertedImage(moving))
+        {
+            var imageRect=ViewRect(moving.X,moving.Y,moving.Width,moving.Height);
+            imageOverflows=!canvasRect.Contains(imageRect);
+            if(imageOverflows)
+            {
+                context.DrawRectangle(checker,null,canvasRect.Union(imageRect));
+                draggedImage??=new Bitmap(new MemoryStream(editor.Assets[moving.AssetHash]));
+                var clip=moving.CropClip?.Bounds(moving);
+                using(context.PushClip(clip is {} c?ViewRect(c.X,c.Y,c.Width,c.Height):imageRect))
+                    context.DrawImage(draggedImage,imageRect);
+            }
+        }
+        if(imageOverflows||doc.BackgroundAssetHash is not null||doc.VisibleSource!=doc.CropBounds)
+            context.DrawRectangle(checker,null,new Rect(0,0,Width,Height));
         context.DrawImage(bitmap,new Rect(0,0,Width,Height));
         if(wandOverlay is not null)
         {
@@ -65,7 +85,14 @@ public sealed class EditorSurface : Control,IDisposable
             var rect=ViewRect(x,y,Math.Abs(selected.Width),Math.Abs(selected.Height));context.DrawRectangle(null,new Pen(Brushes.MediumOrchid,1.5),rect);
             var end=ViewRect(selected.X+selected.Width,selected.Y+selected.Height,0,0).Position;context.DrawRectangle(Brushes.White,new Pen(Brushes.MediumOrchid,1.5),new Rect(end.X-4,end.Y-4,8,8));
         }
-        if(gesture.CropPreview is PixelRect crop)context.DrawRectangle(null,new Pen(Brushes.MediumOrchid,2),ViewRect(crop.X,crop.Y,crop.Width,crop.Height));
+        if(editor.Tool==DesktopTool.Crop)
+        {
+            var crop=gesture.CropPreview??doc.CropBounds;var rect=ViewRect(crop.X,crop.Y,crop.Width,crop.Height);
+            var pen=new Pen(Brushes.MediumOrchid,2);context.DrawRectangle(null,pen,rect);
+            var w=Math.Min(8,rect.Width);var h=Math.Min(8,rect.Height);
+            foreach(var x in new[]{rect.X,rect.Right-w})foreach(var y in new[]{rect.Y,rect.Bottom-h})
+                context.DrawRectangle(Brushes.White,pen,new Rect(x,y,w,h));
+        }
     }
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
@@ -79,6 +106,7 @@ public sealed class EditorSurface : Control,IDisposable
             {CancelGesture();editor.SelectedId=hit.Id;SelectionChanged?.Invoke();TextEditRequested?.Invoke();e.Handled=true;return;}
         }
         Focus();TryBeginGesture(PointFor(e.GetPosition(this)),6/Zoom*editor.Document.Width/editor.Document.OutputSize.Width);pointerDown=gesture.Active;
+        ClipToBounds=gesture.CropPreview is null&&!ImagePlacement.IsInsertedImage(gesture.Preview);
         if(pointerDown)e.Pointer.Capture(this);SelectionChanged?.Invoke();InvalidateVisual();e.Handled=true;
     }
     protected override void OnPointerMoved(PointerEventArgs e)
@@ -91,7 +119,7 @@ public sealed class EditorSurface : Control,IDisposable
     {
         base.OnPointerReleased(e);
         if(panning){panning=false;Cursor=Cursor.Default;e.Pointer.Capture(null);e.Handled=true;return;}
-        if(!pointerDown||editor.Document is null)return;pointerDown=false;TryGesture(()=>gesture.End(PointFor(e.GetPosition(this))));e.Pointer.Capture(null);InvalidateVisual();e.Handled=true;
+        if(!pointerDown||editor.Document is null)return;pointerDown=false;ClipToBounds=true;TryGesture(()=>gesture.End(PointFor(e.GetPosition(this))));draggedImage?.Dispose();draggedImage=null;e.Pointer.Capture(null);InvalidateVisual();e.Handled=true;
     }
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
     {base.OnPointerCaptureLost(e);if(pointerDown||panning){CancelGesture();Cursor=Cursor.Default;}}
@@ -102,5 +130,5 @@ public sealed class EditorSurface : Control,IDisposable
         catch(Exception error)when(error is ArgumentException or InvalidOperationException or IOException)
         {CancelGesture();EditFailed?.Invoke(error);return false;}
     }
-    public void Dispose(){editor.Changed-=Changed;editor.MagicWandChanged-=Changed;bitmap?.Dispose();wandOverlay?.Dispose();}
+    public void Dispose(){editor.Changed-=Changed;editor.MagicWandChanged-=Changed;bitmap?.Dispose();wandOverlay?.Dispose();draggedImage?.Dispose();}
 }

@@ -162,15 +162,23 @@ public sealed class CaptureLibraryStore(string directory)
     internal static void Validate(CaptureRecord r)
     {
         // 디스크에서 읽은 데이터도 신뢰하지 않는다. 좌표·크기·열거형과 자원 참조를 렌더링 전에 검사한다.
-        if(r.SchemaVersion is not (1 or 2)||r.BackgroundAssetHash is not null&&(r.SchemaVersion!=2||!AnnotationDocument.IsAssetHash(r.BackgroundAssetHash)))throw new InvalidDataException("Unsupported capture format.");ImageDimensions.GuardSize(r.Width,r.Height);
+        if(r.SchemaVersion is not (1 or 2 or 3)||r.BackgroundAssetHash is not null&&(r.SchemaVersion==1||!AnnotationDocument.IsAssetHash(r.BackgroundAssetHash)))throw new InvalidDataException("Unsupported capture format.");ImageDimensions.GuardSize(r.Width,r.Height);
         if(!CaptureName.IsValid(r.Name))throw new InvalidDataException("Invalid capture name.");
-        if(r.CropBounds is PixelRect crop&&!CropPlacement.IsWithin(crop,r.Width,r.Height))throw new InvalidDataException("Invalid crop bounds.");
+        var source=new PixelRect(0,0,r.Width,r.Height);
+        if(r.CropBounds is PixelRect crop&&(!CropPlacement.IsValidCanvas(crop)||r.SchemaVersion<3&&!CropPlacement.IsWithin(crop,r.Width,r.Height)))throw new InvalidDataException("Invalid crop bounds.");
+        if(r.SourceClip is PixelRect clip&&(r.SchemaVersion<3||clip!=clip.Intersect(source)))throw new InvalidDataException("Invalid source clip.");
         if(r.ResizeSize is PixelSize size)ImageResize.Validate(size);
         if(r.Sequence is null||r.Sequence.NextNumeric<1||r.Sequence.NextAlphabetic<1||r.Sequence.NextUppercaseAlphabetic<1||!Enum.IsDefined(r.Sequence.Mode)||!Enum.IsDefined(r.Mode)||r.Annotations is null||r.Annotations.Length>10000)throw new InvalidDataException("Invalid capture metadata.");
         foreach(var a in r.Annotations)
         {
             if(a is null||a.Style is null||a.Text is null||a.Text.Length>AnnotationLimits.MaxTextLength||!Enum.IsDefined(a.Kind)||!Enum.IsDefined(a.Style.LineStyle)||!double.IsFinite(a.X)||!double.IsFinite(a.Y)||!double.IsFinite(a.Width)||!double.IsFinite(a.Height)||Math.Abs(a.X)>1000000||Math.Abs(a.Y)>1000000||Math.Abs(a.Width)>1000000||Math.Abs(a.Height)>1000000||!double.IsFinite(a.Style.FontSize)||a.Style.FontSize<1||a.Style.FontSize>4096||!double.IsFinite(a.Style.Thickness)||a.Style.Thickness<1||a.Style.Thickness>1024||a.MosaicBlockSize<1)throw new InvalidDataException("Invalid annotation.");
             if(a.Kind==AnnotationKind.Sticker&&(a.AssetHash is null||a.AssetHash.Length!=64||a.AssetHash.Any(c=>!"0123456789abcdef".Contains(c))))throw new InvalidDataException("Invalid sticker reference.");
+            if(a.CropClip is {} annotationClip)
+            {
+                var b=annotationClip.Bounds(a);
+                if(r.SchemaVersion<3||!double.IsFinite(b.X+b.Width)||!double.IsFinite(b.Y+b.Height)||b.Width<0||b.Height<0)
+                    throw new InvalidDataException("Invalid annotation clip.");
+            }
         }
     }
     private static void ValidatePng(byte[] bytes,int? width=null,int? height=null)

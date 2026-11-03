@@ -7,6 +7,11 @@ public static class AnnotationHitTester
         for(var i=items.Count-1;i>=0;i--)
         {
             var a=items[i];
+            if(a.CropClip is {} clip)
+            {
+                var b=clip.Bounds(a);
+                if(b.Width==0||b.Height==0||p.X<b.X||p.Y<b.Y||p.X>=b.X+b.Width||p.Y>=b.Y+b.Height)continue;
+            }
             if(a.Kind==AnnotationKind.Arrow)
             {
                 // 선분 위의 최근접점을 구해 거리로 판정한다. 사각 바운드만 쓰면 대각선 빈 곳도 선택된다.

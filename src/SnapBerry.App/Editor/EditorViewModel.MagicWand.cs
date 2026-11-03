@@ -14,7 +14,7 @@ public sealed partial class EditorViewModel
     public void SelectMagicWand(PixelPoint point,int tolerance,bool global)
     {
         if(Document is null||record is null)return;
-        var selection=magicWand??new MagicWandSelection(Document.BackgroundAssetHash is {} hash?Assets.Data[hash]:record.OriginalPng,Document.CropBounds);
+        var selection=magicWand??new MagicWandSelection(Document.BackgroundAssetHash is {} hash?Assets.Data[hash]:record.OriginalPng,Document.VisibleSource);
         try{selection.Select((int)Math.Floor(point.X),(int)Math.Floor(point.Y),tolerance,global);}catch{if(magicWand is null)selection.Dispose();throw;}
         magicWand=selection;SelectedId=null;MagicWandChanged?.Invoke(this,EventArgs.Empty);
     }

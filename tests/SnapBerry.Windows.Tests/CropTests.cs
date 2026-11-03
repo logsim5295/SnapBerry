@@ -12,6 +12,39 @@ namespace SnapBerry.Windows.Tests;
 // 자르기 결과의 합성·저장·다시 열기 및 원본 보존을 검증한다.
 public class CropTests
 {
+    [Fact] public void OutwardDragShowsCheckerboardBeyondTheCanvasBeforeCommit()=>Sta.Run(()=>
+    {
+        var vm=new EditorViewModel{Tool=EditorTool.Crop,Zoom=2};
+        vm.Open(new(){Width=40,Height=30,OriginalPng=PngFileWriter.Encode(RenderingTests.Image(40,30))});
+        var canvas=new EditorCanvas{Model=vm};canvas.Refresh();
+        var host=new System.Windows.Controls.Grid{Width=160,Height=140};
+        host.Children.Add(canvas);host.Measure(new(160,140));host.Arrange(new(0,0,160,140));
+        Assert.True(canvas.BeginCrop(new(0,0)));canvas.MoveCrop(new(-15,-10));host.UpdateLayout();
+        var bitmap=new System.Windows.Media.Imaging.RenderTargetBitmap(160,140,96,96,System.Windows.Media.PixelFormats.Pbgra32);
+        bitmap.Render(host);
+        var pixel=new byte[4];bitmap.CopyPixels(new System.Windows.Int32Rect(25,35,1,1),pixel,4,0);
+        Assert.Equal(255,pixel[3]);Assert.InRange(pixel[0],(byte)220,(byte)245);
+        Assert.False(vm.History!.CanUndo);canvas.FinishCrop(new(-15,-10));
+        Assert.Equal(new PixelRect(-15,-10,55,40),vm.Document!.CropBounds);
+    });
+
+    [Fact] public void ExpandedCanvasExportsTransparentPixelsAndReopensAtTheSameOffset()=>Sta.Run(()=>
+    {
+        var source=RenderingTests.Image(4,3);
+        var vm=new EditorViewModel();vm.Open(new(){Width=4,Height=3,OriginalPng=PngFileWriter.Encode(source)});
+        vm.CropTo(new(-2,-1,7,5));
+        var snapshot=vm.Snapshot();
+        vm.History!.Undo();Assert.Equal(new PixelRect(0,0,4,3),vm.Document!.CropBounds);
+        vm.History.Redo();Assert.Equal(snapshot.CropBounds,vm.Document.CropBounds);
+        vm.Open(snapshot);
+        var png=PngFileWriter.Decode(PngFileWriter.Encode(vm.Composite()!));
+        Assert.Equal((7,5),(png.PixelWidth,png.PixelHeight));
+        var actual=new byte[7*5*4];png.CopyPixels(actual,7*4,0);
+        var expected=new byte[actual.Length];
+        source.CopyPixels(System.Windows.Int32Rect.Empty,expected,7*4,(7+2)*4);
+        Assert.Equal(expected,actual);
+    });
+
     [Fact] public void AnnotationsOutsideTheCropAreRetainedButExcludedFromOutput()=>Sta.Run(()=>
     {
         var original=RenderingTests.Image(40,30);var annotation=new Annotation{Kind=AnnotationKind.StepMarker,X=0,Y=0,Width=5,Height=5,Text="1"};
@@ -44,13 +77,18 @@ public class CropTests
             var vm=new EditorViewModel();var original=PngFileWriter.Encode(RenderingTests.Image(160,120));
             var annotation=new Annotation{Kind=AnnotationKind.Text,Text="editable",X=50,Y=40};
             vm.Open(new(){Width=160,Height=120,OriginalPng=original,Annotations=[annotation]});vm.CropTo(new(30,20,80,60));
+            vm.CropTo(new(-40,-30,120,90));
             var record=vm.Snapshot();var store=new CaptureLibraryStore(path);store.SaveAsync(record).GetAwaiter().GetResult();
-            var item=Assert.Single(store.ListAsync(0,50).GetAwaiter().GetResult());Assert.Equal((80,60),(item.Width,item.Height));
+            var item=Assert.Single(store.ListAsync(0,50).GetAwaiter().GetResult());Assert.Equal((120,90),(item.Width,item.Height));
             var reopened=store.LoadAsync(record.Id).GetAwaiter().GetResult();vm.Open(reopened);
-            Assert.Equal(original,reopened.OriginalPng);Assert.Equal(annotation,Assert.Single(vm.Document!.Annotations));
-            Assert.Equal((80,60),(vm.Composite()!.PixelWidth,vm.Composite()!.PixelHeight));
+            Assert.Equal(original,reopened.OriginalPng);
+            var retained=Assert.Single(vm.Document!.Annotations);Assert.Equal(annotation,retained with{CropClip=null});
+            var result=vm.Composite()!;Assert.Equal((120,90),(result.PixelWidth,result.PixelHeight));
+            var pixel=new byte[4];result.CopyPixels(new System.Windows.Int32Rect(39,30,1,1),pixel,4,0);
+            Assert.Equal(0,pixel[3]);
+            result.CopyPixels(new System.Windows.Int32Rect(40,30,1,1),pixel,4,0);Assert.Equal(255,pixel[3]);
             vm.UpdateText(annotation.Id,"changed");Assert.Equal("changed",vm.Document.Annotations[0].Text);
-            Assert.Throws<InvalidDataException>(()=>store.SaveAsync(record with{CropBounds=new(159,0,2,20)}).GetAwaiter().GetResult());
+            Assert.Throws<InvalidDataException>(()=>store.SaveAsync(record with{CropBounds=new(159,0,int.MaxValue,20)}).GetAwaiter().GetResult());
             Assert.Equal(record.CropBounds,store.LoadAsync(record.Id).GetAwaiter().GetResult().CropBounds);
         }
         finally{TestFiles.DeleteDirectory(path);}

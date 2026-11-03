@@ -8,28 +8,32 @@ namespace SnapBerry.App.Rendering;
 // 화면 미리보기·썸네일·클립보드·PNG가 같은 합성 경로를 사용하여 결과 차이를 방지한다.
 public sealed class CompositeRenderer
 {
-    public BitmapSource Render(BitmapSource original,IReadOnlyList<Annotation> items,StickerAssetStore assets,PixelRect? cropBounds=null,PixelSize? resizeSize=null)
+    public BitmapSource Render(BitmapSource original,IReadOnlyList<Annotation> items,StickerAssetStore assets,PixelRect? cropBounds=null,PixelSize? resizeSize=null,PixelRect? sourceClip=null)
     {
-        // 원본 전체 좌표에서 모자이크와 주석을 합성한 뒤 마지막에 잘라 모자이크 격자의 기준을 유지한다.
+        // 투명한 출력 캔버스에 원본과 주석을 같은 원본 좌표계로 그린다.
         GuardSize(original.PixelWidth,original.PixelHeight);
         if(resizeSize is PixelSize target)ImageResize.Validate(target);
-        if(cropBounds is PixelRect bounds&&!CropPlacement.IsWithin(bounds,original.PixelWidth,original.PixelHeight))throw new ArgumentOutOfRangeException(nameof(cropBounds));
+        var crop=cropBounds??new PixelRect(0,0,original.PixelWidth,original.PixelHeight);
+        if(!CropPlacement.IsValidCanvas(crop))throw new ArgumentOutOfRangeException(nameof(cropBounds));
         var visual=new DrawingVisual();using(var dc=visual.RenderOpen())
         {
-            dc.PushClip(new RectangleGeometry(new Rect(0,0,original.PixelWidth,original.PixelHeight)));
-            dc.DrawImage(Mosaic(original,items),new Rect(0,0,original.PixelWidth,original.PixelHeight));
+            dc.PushTransform(new TranslateTransform(-crop.X,-crop.Y));
+            DrawBackground(dc,original,items,sourceClip);
             foreach(var a in items.Where(x=>x.Kind!=AnnotationKind.Mosaic))DrawAnnotation(dc,a,assets);
             dc.Pop();
         }
-        var output=new RenderTargetBitmap(original.PixelWidth,original.PixelHeight,96,96,PixelFormats.Pbgra32);output.Render(visual);output.Freeze();
-        BitmapSource result=output;
-        if(cropBounds is PixelRect crop&&crop!=new PixelRect(0,0,original.PixelWidth,original.PixelHeight))
-        {var cropped=new CroppedBitmap(output,new Int32Rect(crop.X,crop.Y,crop.Width,crop.Height));cropped.Freeze();result=cropped;}
+        var result=new RenderTargetBitmap(crop.Width,crop.Height,96,96,PixelFormats.Pbgra32);result.Render(visual);result.Freeze();
         if(resizeSize is not PixelSize size||size==new PixelSize(result.PixelWidth,result.PixelHeight))return result;
         // 합성·자르기 후 한 번만 리샘플링하므로 원본과 주석 데이터는 그대로 유지된다.
         var resizedVisual=new DrawingVisual();RenderOptions.SetBitmapScalingMode(resizedVisual,BitmapScalingMode.HighQuality);
         using(var drawing=resizedVisual.RenderOpen())drawing.DrawImage(result,new Rect(0,0,size.Width,size.Height));
         var resized=new RenderTargetBitmap(size.Width,size.Height,96,96,PixelFormats.Pbgra32);resized.Render(resizedVisual);resized.Freeze();return resized;
+    }
+    internal static void DrawBackground(DrawingContext dc,BitmapSource original,IReadOnlyList<Annotation> items,PixelRect? sourceClip)
+    {
+        if(sourceClip is PixelRect clip)dc.PushClip(new RectangleGeometry(new Rect(clip.X,clip.Y,clip.Width,clip.Height)));
+        dc.DrawImage(Mosaic(original,items),new Rect(0,0,original.PixelWidth,original.PixelHeight));
+        if(sourceClip.HasValue)dc.Pop();
     }
     // 중간 버퍼까지 포함한 예상 비용으로 이미지 크기를 제한한다.
     public static void GuardSize(int width,int height)
@@ -90,6 +94,11 @@ public sealed class CompositeRenderer
     }
     public static void DrawAnnotation(DrawingContext dc,Annotation a,StickerAssetStore assets)
     {
+        if(a.CropClip is {} clip)
+        {
+            var b=clip.Bounds(a);
+            dc.PushClip(new RectangleGeometry(new Rect(b.X,b.Y,b.Width,b.Height)));
+        }
         // 점선의 길이 0 구간도 보이도록 둥근 대시 끝을 사용한다. 화살촉은 선 모양과 무관하게 채운다.
         var pen=new Pen(Brush(a.Style.Color),a.Style.Thickness){StartLineCap=PenLineCap.Round,EndLineCap=PenLineCap.Round,DashStyle=GetDashStyle(a.Style.LineStyle),DashCap=PenLineCap.Round};
         var minimum=a.Kind==AnnotationKind.Sticker?0:1;
@@ -106,5 +115,6 @@ public sealed class CompositeRenderer
                 dc.DrawEllipse(Brush(a.Style.Fill),null,new Point(rect.X+rect.Width/2,rect.Y+rect.Height/2),rect.Width/2,rect.Height/2);DrawStepLabel(dc,a,rect);break;
             case AnnotationKind.Sticker:dc.DrawImage(assets.GetBitmap(a.AssetHash),rect);break;
         }
+        if(a.CropClip.HasValue)dc.Pop();
     }
 }

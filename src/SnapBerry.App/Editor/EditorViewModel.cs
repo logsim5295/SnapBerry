@@ -47,7 +47,7 @@ public sealed partial class EditorViewModel
         CaptureLibraryStore.Validate(value);CaptureLibraryStore.ValidateImageAssetSizes(value.OriginalPng.LongLength,value.StickerAssets.Values.Select(a=>a.LongLength));
         CompositeRenderer.GuardSize(value.Width,value.Height);var original=image??PngFileWriter.Decode(value.OriginalPng);
         if(original.PixelWidth!=value.Width||original.PixelHeight!=value.Height)throw new InvalidDataException("Image size does not match.");
-        var document=new AnnotationDocument(value.Width,value.Height){Sequence=value.Sequence,CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),ResizeSize=value.ResizeSize,BackgroundAssetHash=value.BackgroundAssetHash};document.Annotations.AddRange(value.Annotations);
+        var document=new AnnotationDocument(value.Width,value.Height){Sequence=value.Sequence,CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),SourceClip=value.SourceClip,ResizeSize=value.ResizeSize,BackgroundAssetHash=value.BackgroundAssetHash};document.Annotations.AddRange(value.Annotations);
         var assets=new StickerAssetStore();assets.Import(value.StickerAssets);foreach(var a in value.Annotations.Where(x=>x.Kind==AnnotationKind.Sticker))assets.GetBitmap(a.AssetHash);
         if(value.BackgroundAssetHash is {} background)
         {
@@ -62,7 +62,7 @@ public sealed partial class EditorViewModel
         // 참조 중인 스티커만 포함한다. 원본 PNG는 유지하고 편집 메타데이터를 덧붙인다.
         if(record is null||Document is null)throw new InvalidOperationException("No capture is open.");
         var hashes=Document.ReferencedAssetHashes;
-        return record with {SchemaVersion=Document.BackgroundAssetHash is null?1:2,BackgroundAssetHash=Document.BackgroundAssetHash,UpdatedAtUtc=DateTimeOffset.UtcNow,CropBounds=Document.CropBounds==new PixelRect(0,0,Document.SourceWidth,Document.SourceHeight)?null:Document.CropBounds,ResizeSize=Document.ResizeSize,Annotations=Document.Annotations.ToArray(),Sequence=Document.Sequence,StickerAssets=hashes.ToDictionary(h=>h,h=>Assets.Data[h])};
+        return record.WithCanvas(Document) with {UpdatedAtUtc=DateTimeOffset.UtcNow,Annotations=Document.Annotations.ToArray(),Sequence=Document.Sequence,StickerAssets=hashes.ToDictionary(h=>h,h=>Assets.Data[h])};
     }
     // 저장이 완료된 이름만 반영한다. 편집 문서와 실행 취소 스택은 교체하지 않는다.
     public void SetCaptureName(string name)
@@ -78,7 +78,7 @@ public sealed partial class EditorViewModel
         if(image.PixelWidth!=Document.SourceWidth||image.PixelHeight!=Document.SourceHeight)throw new InvalidDataException("누끼 이미지의 크기가 원본과 다릅니다.");
         var hash=Assets.AddPng(png);SelectedId=null;History.SetBackground(hash);
     }
-    public BitmapSource? Composite()=>Document is null||Background is null?null:composite??=new CompositeRenderer().Render(Background,Document.Annotations,Assets,Document.CropBounds,Document.ResizeSize);
+    public BitmapSource? Composite()=>Document is null||Background is null?null:composite??=new CompositeRenderer().Render(Background,Document.Annotations,Assets,Document.CropBounds,Document.ResizeSize,Document.SourceClip);
     public void CropTo(PixelRect relativeBounds)
     {if(History is null)return;SelectedId=null;History.Crop(relativeBounds);}
     public void InsertSticker(StickerDefinition definition,PixelPoint point)
@@ -94,24 +94,16 @@ public sealed partial class EditorViewModel
         var sizes=Document.ReferencedAssetHashes.ToDictionary(key=>key,key=>Assets.Data[key].LongLength);
         sizes[hash]=png.LongLength;CaptureLibraryStore.ValidateImageAssetSizes(record.OriginalPng.LongLength,sizes.Values);
         var image=PngFileWriter.Decode(png);CompositeRenderer.GuardSize(image.PixelWidth,image.PixelHeight);
-        var output=Document.OutputSize;
-        // 출력 픽셀 기준으로 원래 비율을 유지한 뒤 자르기·크기 변경 전의 문서 좌표로 환산한다.
-        var fit=Math.Min(1,Math.Min((double)output.Width/image.PixelWidth,(double)output.Height/image.PixelHeight));
-        var width=(objectSize is {IsValid:true} size?size.Width:image.PixelWidth*fit)*Document.Width/output.Width;
-        var height=(objectSize is {IsValid:true} size2?size2.Height:image.PixelHeight*fit)*Document.Height/output.Height;
-        if(!double.IsFinite(width)||!double.IsFinite(height)||width<=0||height<=0||width>1000000||height>1000000)
-            throw new InvalidDataException("붙여넣을 이미지의 표시 크기가 너무 큽니다.");
-        Assets.AddPng(png);
-        var annotation=new Annotation{Kind=AnnotationKind.Sticker,StickerId="pasted-image",AssetHash=hash,
-            X=Document.CropBounds.X+(Document.Width-width)/2,Y=Document.CropBounds.Y+(Document.Height-height)/2,Width=width,Height=height};
-        SelectedId=annotation.Id;History.Add(annotation);
+        var size=objectSize is {IsValid:true} copied?copied:new ClipboardImageSize(image.PixelWidth,image.PixelHeight);
+        var annotation=ImagePlacement.Center(Document,new(){Kind=AnnotationKind.Sticker,StickerId="pasted-image",AssetHash=hash},size.Width,size.Height);
+        History.Add(annotation,()=>{Assets.AddPng(png);SelectedId=annotation.Id;});
     }
     public void InsertAnnotation(ClipboardImageContent content,PixelPoint center)
     {
         if(Document is null||History is null)throw new InvalidOperationException("No capture is open.");
         var source=content.Annotation??throw new InvalidDataException("복사한 개체 정보가 없습니다.");
         var annotation=source with{Id=Guid.NewGuid(),X=center.X-source.Width/2,Y=center.Y-source.Height/2};
-        CaptureLibraryStore.Validate(new(){Width=1,Height=1,Annotations=[annotation]});
+        CaptureLibraryStore.Validate(new(){SchemaVersion=3,Width=1,Height=1,Annotations=[annotation]});
         if(annotation.Kind==AnnotationKind.Sticker)
         {
             var png=PngFileWriter.Encode(content.Image);CaptureLibraryStore.ValidateImageAssetSizes(record!.OriginalPng.LongLength,[png.LongLength]);
