@@ -27,7 +27,8 @@ public class StickerWorkflowTests
             buttons[1].RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));Assert.NotEqual(first.Id,w.Model.SelectedSticker!.Id);Insert();Assert.Equal(3,w.Model.Document.Annotations.Count);Assert.Equal(w.Model.SelectedSticker.Id,w.Model.Document.Annotations.Last().StickerId);Assert.True(picker.IsVisible);
             w.SetBusy(true);Assert.False(picker.IsVisible);w.SetBusy(false);Assert.True(picker.IsVisible);w.Hide();Assert.False(picker.IsVisible);w.Show();Assert.True(picker.IsVisible);
             Tool(w,"Arrow");Assert.Empty(w.OwnedWindows.OfType<StickerPicker>());Tool(w,"Sticker");picker=w.OwnedWindows.OfType<StickerPicker>().Single();Assert.Equal(w.Model.SelectedSticker.Id,picker.Selected!.Id);Escape(w);Assert.Empty(w.OwnedWindows.OfType<StickerPicker>());
-            Tool(w,"Sticker");picker=w.OwnedWindows.OfType<StickerPicker>().Single();Escape(picker);Assert.Empty(w.OwnedWindows.OfType<StickerPicker>());
+            Assert.Equal(EditorTool.Select,w.Model.Tool);
+            Tool(w,"Sticker");picker=w.OwnedWindows.OfType<StickerPicker>().Single();Escape(picker);Assert.Empty(w.OwnedWindows.OfType<StickerPicker>());Assert.Equal(EditorTool.Select,w.Model.Tool);
             Tool(w,"Sticker");w.Close();Assert.False(w.IsVisible);Assert.Empty(w.OwnedWindows.OfType<StickerPicker>());
         }
         finally{w.CloseForExit();TestFiles.DeleteDirectory(path);}

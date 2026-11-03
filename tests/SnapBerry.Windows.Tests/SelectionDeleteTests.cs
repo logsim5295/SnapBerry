@@ -38,6 +38,29 @@ public class SelectionDeleteTests
     }
 
     [Theory]
+    [InlineData(EditorTool.Arrow)] [InlineData(EditorTool.Text)] [InlineData(EditorTool.Rectangle)]
+    [InlineData(EditorTool.Mosaic)] [InlineData(EditorTool.Number)] [InlineData(EditorTool.Sticker)]
+    [InlineData(EditorTool.MagicWand)] [InlineData(EditorTool.Crop)]
+    public void EscapeReturnsToSelectWithoutEditingTheDocument(EditorTool tool)=>Sta.Run(()=>WithWindow(window=>
+    {
+        var model=window.Model;var token=model.History!.CurrentStateToken;
+        var buttons=((ItemsControl)window.FindName("ToolsPanel")).Items.OfType<System.Windows.Controls.Primitives.ToggleButton>().ToArray();
+        // 스티커 창을 띄우지 않고 편집기 쪽 단축키만 검증한다.
+        if(tool==EditorTool.Sticker)model.Tool=tool;
+        else buttons.Single(button=>(string)button.Tag==tool.ToString()).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if(tool==EditorTool.MagicWand)model.SelectMagicWand(new(1,1),0,false);
+        var canvas=(EditorCanvas)((Grid)window.FindName("CanvasHost")).Children[0];
+        canvas.BeginShape(new(1,1));
+        if(tool==EditorTool.Crop){Assert.True(canvas.BeginCrop(new(0,0)));canvas.MoveCrop(new(10,10));}
+        var key=new KeyEventArgs(Keyboard.PrimaryDevice,new Source(),0,Key.Escape){RoutedEvent=Keyboard.PreviewKeyDownEvent};
+        canvas.RaiseEvent(key);
+        Assert.True(key.Handled);Assert.Equal(EditorTool.Select,model.Tool);
+        Assert.Equal("Select",Assert.Single(buttons,button=>button.IsChecked==true).Tag);
+        canvas.FinishCrop(new(10,10));
+        Assert.Null(canvas.ShapePreview);Assert.False(model.HasPixelSelection);Assert.Equal(token,model.History.CurrentStateToken);
+    }));
+
+    [Theory]
     [InlineData(AnnotationKind.Arrow)] [InlineData(AnnotationKind.Rectangle)]
     [InlineData(AnnotationKind.Text)] [InlineData(AnnotationKind.StepMarker)]
     [InlineData(AnnotationKind.Mosaic)] [InlineData(AnnotationKind.Sticker)]

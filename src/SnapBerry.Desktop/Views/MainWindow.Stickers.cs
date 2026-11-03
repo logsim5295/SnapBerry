@@ -14,6 +14,7 @@ public sealed partial class MainWindow
         {
             editor.InsertSticker(definition);Control<ComboBox>("ToolBox").SelectedIndex=0;editor.Tool=Editing.DesktopTool.Select;return Task.CompletedTask;
         })){RequestedThemeVariant=ActualThemeVariant};
+        stickerPicker.AddHandler(KeyDownEvent,ToolEscapeKeyDown,Avalonia.Interactivity.RoutingStrategies.Tunnel);
         stickerPicker.Closed+=(_,_)=>stickerPicker=null;stickerPicker.Show(this);return Task.CompletedTask;
     }
     private Task UpdateKeycapAsync()

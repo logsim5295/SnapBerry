@@ -33,8 +33,8 @@ public sealed partial class MainWindow
         Wire("ViewFitButton",()=>{Fit();return Task.CompletedTask;});
         Wire("ViewHistoryButton",()=>{SetHistoryPanelVisible(!preferences.HistoryVisible);return Task.CompletedTask;});
         foreach(var button in Control<WrapPanel>("ToolButtons").Children.OfType<Button>().Where(b=>b.Tag is not null))
-            button.Click+=(_,_)=>SelectTool((DesktopTool)int.Parse((string)button.Tag!));
-        Control<ComboBox>("ToolBox").SelectionChanged+=(_,_)=>{if(!selectingTool)SelectTool((DesktopTool)Control<ComboBox>("ToolBox").SelectedIndex);};
+            button.Click+=(_,_)=>{if(!busy)SelectTool((DesktopTool)int.Parse((string)button.Tag!));};
+        Control<ComboBox>("ToolBox").SelectionChanged+=(_,_)=>{if(!busy&&!selectingTool)SelectTool((DesktopTool)Control<ComboBox>("ToolBox").SelectedIndex);};
         Control<TextBox>("TextEntry").MaxLength=AnnotationLimits.MaxTextLength;
         Control<TextBox>("TextEntry").TextChanged+=(_,_)=>surface.Gesture.Text=Control<TextBox>("TextEntry").Text??"";
         Control<TextBox>("ColorBox").LostFocus+=(_,_)=>TryProperty(()=>UpdateStyle("color"));
@@ -71,7 +71,7 @@ public sealed partial class MainWindow
     }
     private void SelectTool(DesktopTool tool)
     {
-        if(busy||!Enum.IsDefined(tool))return;EndPropertyEditGroup();surface.CancelGesture();editor.ClearMagicWand();editor.Tool=tool;if(tool==DesktopTool.MagicWand)editor.SelectedId=null;
+        if(!Enum.IsDefined(tool))return;EndPropertyEditGroup();surface.CancelGesture();editor.Tool=tool;editor.ClearMagicWand();if(tool==DesktopTool.MagicWand)editor.SelectedId=null;
         selectingTool=true;try{Control<ComboBox>("ToolBox").SelectedIndex=(int)tool;}finally{selectingTool=false;}
         if(tool==DesktopTool.Image)_=RunAsync(()=>OpenImageAsync(true));RefreshSelection();
     }
@@ -156,6 +156,11 @@ public sealed partial class MainWindow
     {
         if(editor.Selected is not {} selected)return;var multiline=selected.Kind==AnnotationKind.Text;
         var dialog=new TextEditWindow(selected.Text,multiline?"텍스트 편집":selected.Kind==AnnotationKind.StepMarker?"번호 편집":"키 라벨 편집",multiline,multiline?AnnotationLimits.MaxTextLength:128){RequestedThemeVariant=ActualThemeVariant};
+        dialog.AddHandler(KeyDownEvent,(_,e)=>
+        {
+            if(e.Key!=Key.Escape||editor.Tool==DesktopTool.Select)return;
+            e.Handled=true;SelectTool(DesktopTool.Select);dialog.Close();
+        },RoutingStrategies.Tunnel);
         var text=await dialog.ShowDialog<string?>(this);if(text is not null&&editor.SelectedId==selected.Id)editor.EditSelectedText(text);
     }
     private async Task<IStorageFolder?> GetExportDirectoryAsync()

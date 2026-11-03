@@ -52,6 +52,5 @@ public sealed class StickerPicker : Window
             }HighlightSelection();
         }
         categories.SelectionChanged+=(_,_)=>Populate();Content=new Border{Background=ThemeResources.Get(this,"Surface"),BorderBrush=ThemeResources.Get(this,"Selected"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(8),Child=grid};Populate();
-        PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape){e.Handled=true;Close();}};
     }
 }

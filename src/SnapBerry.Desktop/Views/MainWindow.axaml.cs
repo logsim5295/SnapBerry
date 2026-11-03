@@ -54,6 +54,7 @@ public sealed partial class MainWindow : Window,IDisposable
         var theme=Control<ComboBox>("ThemeBox");theme.SelectedIndex=preferences.Dark?1:0;ApplyTheme(theme.SelectedIndex==1);
         theme.SelectionChanged+=(_,_)=>{ApplyTheme(theme.SelectedIndex==1);try{var next=preferences with{Dark=theme.SelectedIndex==1};next.Save(dataDirectory);preferences=next;}catch(Exception error){Status("테마 저장 실패: "+error.Message);}};
         InitializeMagicWand();InitializeHistoryFeatures();InitializeParityFeatures();
+        AddHandler(KeyDownEvent,ToolEscapeKeyDown,RoutingStrategies.Tunnel);
         AddHandler(KeyDownEvent,HandleKey,RoutingStrategies.Bubble);Closing+=WindowClosing;Deactivated+=(_,_)=>surface.CancelGesture();
         Closed+=(_,_)=>Dispose();
         Opened+=async (_,_)=>{InitializeHotkeys();await RefreshHistoryAsync();if(editor.Document is not null)Fit();};UpdateCommands();
@@ -125,6 +126,14 @@ public sealed partial class MainWindow : Window,IDisposable
         else if(!textInput&&command&&e.Key==Key.Z){e.Handled=true;surface.CancelGesture();if(e.KeyModifiers.HasFlag(KeyModifiers.Shift))editor.History?.Redo();else editor.History?.Undo();}
         else if(!textInput&&command&&e.Key==Key.D){e.Handled=true;surface.CancelGesture();editor.DuplicateSelected();}
         else if(!textInput&&e.Key is Key.Delete or Key.Back){e.Handled=true;surface.CancelGesture();DeleteSelectionSafely();}
+    }
+    private void ToolEscapeKeyDown(object? sender,KeyEventArgs e)
+    {
+        if(e.Key!=Key.Escape||busy||editor.Document is null||(editor.Tool==DesktopTool.Select&&stickerPicker is null))return;
+        stickerPicker?.Close();
+        SelectTool(DesktopTool.Select);
+        Status("선택 도구");
+        e.Handled=true;
     }
     private async void WindowClosing(object? sender,WindowClosingEventArgs e)
     {

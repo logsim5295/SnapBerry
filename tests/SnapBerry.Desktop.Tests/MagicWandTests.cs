@@ -47,6 +47,7 @@ public class MagicWandTests
             editor.History.Undo();new EditorGesture(editor).Begin(new(1,1));
             window.RaiseEvent(new Avalonia.Input.KeyEventArgs{RoutedEvent=Avalonia.Input.InputElement.KeyDownEvent,Key=Avalonia.Input.Key.Escape});
             Assert.False(editor.HasPixelSelection);Assert.Equal(token,editor.History.CurrentStateToken);
+            Assert.Equal(DesktopTool.Select,editor.Tool);Assert.False(Control<Avalonia.Controls.WrapPanel>("MagicWandControls").IsVisible);
         }
         finally{window.Dispose();window.Close();if(Directory.Exists(path))Directory.Delete(path,true);}
     }

@@ -286,10 +286,17 @@ public partial class EditorWindow : Window
     }
     private void ToolClick(object sender,RoutedEventArgs e)
     {
-        if(busy||Model.Document is null||sender is not ToggleButton button)return;EndPropertyDrag();canvas.CancelGesture();Model.ClearMagicWand();Model.Tool=Enum.Parse<EditorTool>((string)button.Tag);foreach(var item in ToolsPanel.Items.OfType<ToggleButton>())item.IsChecked=item==button;
+        if(busy||Model.Document is null||sender is not ToggleButton button)return;
+        SelectTool(Enum.Parse<EditorTool>((string)button.Tag));
+    }
+    private void SelectTool(EditorTool tool)
+    {
+        EndPropertyDrag();canvas.CancelGesture();Model.Tool=tool;Model.ClearMagicWand();
+        foreach(var item in ToolsPanel.Items.OfType<ToggleButton>())item.IsChecked=(string)item.Tag==tool.ToString();
         if(Model.Tool is EditorTool.Crop or EditorTool.MagicWand)Model.SelectedId=null;
         UpdateCommands();UpdateProperties();canvas.Cursor=Model.Tool is EditorTool.Select or EditorTool.Crop?Cursors.Arrow:Cursors.Cross;canvas.InvalidateVisual();
-        if(Model.Tool==EditorTool.Sticker)ChooseStickerClick(sender,e);else CloseStickerPicker();
+        if(tool==EditorTool.Sticker)ShowStickerPicker();else CloseStickerPicker();
+        if(tool==EditorTool.Select)StatusText.Text="선택 도구";
     }
     private async void CaptureClick(object sender,RoutedEventArgs e)=>await SafeAsync(async()=>{if(!busy&&CaptureRequested is not null&&sender is FrameworkElement{Tag:string mode})await CaptureRequested(Enum.Parse<CaptureMode>(mode));});
     private async void SettingsClick(object sender,RoutedEventArgs e)=>await SafeAsync(async()=>{if(SettingsRequested is not null)await SettingsRequested();});
@@ -305,7 +312,9 @@ public partial class EditorWindow : Window
         if(busy)return;var id=Model.CaptureId;SetBusy(true);
         try
         {
-            var dialog=new TextAnnotationEditor(annotation?.Text??"",annotation is null||annotation.Kind==AnnotationKind.Text,annotation?.Kind==AnnotationKind.Sticker?64:AnnotationLimits.MaxTextLength){Owner=this};if(dialog.ShowDialog()!=true||Model.CaptureId!=id)return;
+            var dialog=new TextAnnotationEditor(annotation?.Text??"",annotation is null||annotation.Kind==AnnotationKind.Text,annotation?.Kind==AnnotationKind.Sticker?64:AnnotationLimits.MaxTextLength){Owner=this};
+            dialog.PreviewKeyDown+=(_,e)=>{if(e.Key==Key.Escape&&Model.Tool!=EditorTool.Select){e.Handled=true;dialog.DialogResult=false;SelectTool(EditorTool.Select);}};
+            if(dialog.ShowDialog()!=true||Model.CaptureId!=id)return;
             if(annotation?.Kind==AnnotationKind.Sticker){Model.UpdateKeycapLabel(annotation.Id,dialog.Value);return;}
             if(annotation is not null)Model.UpdateText(annotation.Id,dialog.Value);
             else
@@ -365,11 +374,13 @@ public partial class EditorWindow : Window
     private void NextNumberKeyDown(object sender,KeyEventArgs e){if(e.Key==Key.Enter){ApplyNextNumber();e.Handled=true;}}
     private void ApplyNextNumber()
     {if(!ready||updatingNumber||Model.Document is null)return;try{var s=Model.Document.Sequence;var value=StepLabelFormatter.Parse(NextNumberBox.Text,s.Mode);var next=s.WithNextValue(value);if(s!=next)Model.History?.SetSequence(next);}catch(Exception){StatusText.Text="다음 순번을 확인해 주세요.";UpdateNumber();}}
-    private void ChooseStickerClick(object sender,RoutedEventArgs e)
+    private void ChooseStickerClick(object sender,RoutedEventArgs e)=>ShowStickerPicker();
+    private void ShowStickerPicker()
     {
         if(busy||Model.Document is null||Model.Tool!=EditorTool.Sticker)return;
         if(stickerPicker is not null){stickerPicker.Show();stickerPicker.Activate();return;}
         var picker=new StickerPicker(Model.SelectedSticker){Owner=this,Icon=Icon,WindowStartupLocation=WindowStartupLocation.Manual};
+        picker.PreviewKeyDown+=ToolEscapeKeyDown;
         var saved=settings.StickerWindow;var initialSize=new Size(picker.Width,picker.Height);var initialized=false;
         StickerWindowState? lastPlacement=saved;
         void RememberPlacement(){if(initialized)lastPlacement=StickerPickerPlacement.Capture(picker)??lastPlacement;}
@@ -537,9 +548,9 @@ public partial class EditorWindow : Window
     private void FitClick(object sender,RoutedEventArgs e)=>Fit();private void ZoomOutClick(object sender,RoutedEventArgs e)=>SetZoom(Model.Zoom/1.25);private void ZoomInClick(object sender,RoutedEventArgs e)=>SetZoom(Model.Zoom*1.25);
     private void WindowKeyDown(object sender,KeyEventArgs e)
     {
-        if(e.Key==Key.Escape&&Model.HasPixelSelection){Model.ClearMagicWand();e.Handled=true;return;}
+        ToolEscapeKeyDown(sender,e);
+        if(e.Handled)return;
         if(e.Key==Key.Escape&&imagePan.IsActive){imagePan.Cancel();e.Handled=true;return;}
-        if(e.Key==Key.Escape&&!busy&&stickerPicker is not null){canvas.CancelGesture();CloseStickerPicker();e.Handled=true;return;}
         if(IsTextInput(e.OriginalSource as DependencyObject)||busy)return;
         // 캔버스 밖의 리본·속성 컨트롤에 포커스가 있어도 선택 개체를 삭제한다.
         // 이력 목록의 Delete는 기존 이력 삭제 처리로 전달한다.
@@ -548,6 +559,13 @@ public partial class EditorWindow : Window
         {DeleteSelectionSafely();e.Handled=true;return;}
         if(Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
         {if(e.Key==Key.Z){canvas.CancelGesture();Model.History?.Undo();e.Handled=true;}else if(e.Key==Key.Y){canvas.CancelGesture();Model.History?.Redo();e.Handled=true;}else if(e.Key==Key.S){SaveClick(this,new());e.Handled=true;}}
+    }
+    private void ToolEscapeKeyDown(object sender,KeyEventArgs e)
+    {
+        if(e.Key!=Key.Escape||busy||Model.Document is null||Model.Tool==EditorTool.Select)return;
+        imagePan.Cancel();
+        SelectTool(EditorTool.Select);
+        e.Handled=true;
     }
     private void SaveHistoryWidth()
     {

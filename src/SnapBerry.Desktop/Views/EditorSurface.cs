@@ -19,6 +19,7 @@ public sealed class EditorSurface : Control,IDisposable
     private static readonly ImageBrush checker=new(new Bitmap(new MemoryStream(SnapBerry.Imaging.MagicWandSelection.CheckerboardPng())))
     {TileMode=TileMode.Tile,DestinationRect=new RelativeRect(0,0,16,16,RelativeUnit.Absolute),Stretch=Stretch.None};
     private bool pointerDown,panning;private Point panPosition;private double zoom=1;
+    private IPointer? capturedPointer;
     public EditorGesture Gesture=>gesture;
     public event Action<Vector>? PanRequested;
     public event Action? SelectionChanged;
@@ -28,7 +29,12 @@ public sealed class EditorSurface : Control,IDisposable
     public EditorSurface(DesktopEditor editor)
     {this.editor=editor;gesture=new(editor);Focusable=true;ClipToBounds=true;editor.Changed+=Changed;editor.MagicWandChanged+=Changed;Refresh();}
     private void Changed(object? sender,EventArgs args)=>Refresh();
-    public void CancelGesture(){gesture.Cancel();ClipToBounds=true;pointerDown=false;panning=false;Refresh();}
+    public void CancelGesture()
+    {
+        gesture.Cancel();ClipToBounds=true;pointerDown=false;panning=false;
+        if(capturedPointer?.Captured==this)capturedPointer.Capture(null);
+        capturedPointer=null;Cursor=Cursor.Default;Refresh();
+    }
     public void Refresh()
     {
         bitmap?.Dispose();bitmap=null;lastPreview=null;wandOverlay?.Dispose();wandOverlay=null;
@@ -97,7 +103,7 @@ public sealed class EditorSurface : Control,IDisposable
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);if(editor.Document is null)return;var properties=e.GetCurrentPoint(this).Properties;
-        if(properties.IsMiddleButtonPressed){gesture.CancelDragForNavigation();panning=true;panPosition=e.GetPosition(TopLevel.GetTopLevel(this));Cursor=new(StandardCursorType.Hand);e.Pointer.Capture(this);e.Handled=true;return;}
+        if(properties.IsMiddleButtonPressed){gesture.CancelDragForNavigation();panning=true;panPosition=e.GetPosition(TopLevel.GetTopLevel(this));Cursor=new(StandardCursorType.Hand);capturedPointer=e.Pointer;e.Pointer.Capture(this);e.Handled=true;return;}
         if(!properties.IsLeftButtonPressed||panning)return;
         if(e.ClickCount==2&&editor.Tool!=DesktopTool.MagicWand)
         {
@@ -107,7 +113,7 @@ public sealed class EditorSurface : Control,IDisposable
         }
         Focus();TryBeginGesture(PointFor(e.GetPosition(this)),6/Zoom*editor.Document.Width/editor.Document.OutputSize.Width);pointerDown=gesture.Active;
         ClipToBounds=gesture.CropPreview is null&&!ImagePlacement.IsInsertedImage(gesture.Preview);
-        if(pointerDown)e.Pointer.Capture(this);SelectionChanged?.Invoke();InvalidateVisual();e.Handled=true;
+        if(pointerDown){capturedPointer=e.Pointer;e.Pointer.Capture(this);}SelectionChanged?.Invoke();InvalidateVisual();e.Handled=true;
     }
     protected override void OnPointerMoved(PointerEventArgs e)
     {
@@ -122,7 +128,7 @@ public sealed class EditorSurface : Control,IDisposable
         if(!pointerDown||editor.Document is null)return;pointerDown=false;ClipToBounds=true;TryGesture(()=>gesture.End(PointFor(e.GetPosition(this))));draggedImage?.Dispose();draggedImage=null;e.Pointer.Capture(null);InvalidateVisual();e.Handled=true;
     }
     protected override void OnPointerCaptureLost(PointerCaptureLostEventArgs e)
-    {base.OnPointerCaptureLost(e);if(pointerDown||panning){CancelGesture();Cursor=Cursor.Default;}}
+    {base.OnPointerCaptureLost(e);capturedPointer=null;if(pointerDown||panning)CancelGesture();}
     public bool TryBeginGesture(PixelPoint point,double tolerance=6)=>TryGesture(()=>gesture.Begin(point,tolerance));
     private bool TryGesture(Action action)
     {
