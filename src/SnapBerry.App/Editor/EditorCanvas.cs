@@ -29,6 +29,7 @@ public sealed class EditorCanvas : FrameworkElement
     private PixelPoint Point(MouseEventArgs e)=>ToDocumentPoint(e.GetPosition(this));
     public void Refresh(){var bytes=Model.MagicWandPreview;if(!ReferenceEquals(bytes,wandBytes)){wandBytes=bytes;wandOverlay=bytes is null?null:SnapBerry.App.Export.PngFileWriter.Decode(bytes);}if(lastDocument!=Model.Document||lastCropBounds!=Model.Document?.CropBounds||lastOutputSize!=Model.Document?.OutputSize){CancelGesture();lastDocument=Model.Document;lastCropBounds=Model.Document?.CropBounds;lastOutputSize=Model.Document?.OutputSize;}Width=(Model.Document?.OutputSize.Width??900)*Model.Zoom;Height=(Model.Document?.OutputSize.Height??600)*Model.Zoom;InvalidateVisual();}
     public void CancelGesture(){shape.Cancel();crop.Cancel();ClipToBounds=true;dragging=false;before=null;preview=null;previewLayers=null;resizing=false;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();}
+    internal void CancelDragForNavigation(){if(!shape.WaitingForEnd)CancelGesture();}
     protected override void OnLostMouseCapture(MouseEventArgs e){base.OnLostMouseCapture(e);if(dragging||crop.Active)CancelGesture();}
     internal Annotation? ShapePreview=>shape.Preview is Annotation a&&a.Kind==AnnotationKind.Mosaic?a with{MosaicBlockSize=Model.MosaicSize}:shape.Preview;
     internal bool BeginShape(PixelPoint point)

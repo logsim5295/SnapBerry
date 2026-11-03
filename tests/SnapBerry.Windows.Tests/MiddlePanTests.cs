@@ -47,6 +47,25 @@ public class MiddlePanTests
         Assert.Equal(annotation.Id,model.SelectedId);Assert.Equal(4,model.Zoom);Assert.Equal(original,model.Snapshot().OriginalPng);
     });
 
+    [Fact] public void MiddleDragBetweenClicksPreservesTheFirstDocumentPoint()=>Sta.Run(()=>
+    {
+        var model=new EditorViewModel{Tool=EditorTool.Rectangle};
+        model.Open(new(){Width=600,Height=400,OriginalPng=PngFileWriter.Encode(RenderingTests.Image(600,400))});
+        var canvas=new EditorCanvas{Model=model};canvas.Refresh();
+        var viewport=new ScrollViewer{Content=canvas,HorizontalScrollBarVisibility=ScrollBarVisibility.Auto,VerticalScrollBarVisibility=ScrollBarVisibility.Auto};
+        viewport.Measure(new Size(300,200));viewport.Arrange(new Rect(0,0,300,200));viewport.UpdateLayout();
+        var pan=new ScrollPanController(viewport,()=>true,canvas.CancelDragForNavigation,()=>true,()=>{});
+        canvas.BeginShape(new(20,30));canvas.FinishShape(new(20,30));
+        Assert.True(pan.Begin(new(100,100)));pan.Move(new(40,60));pan.Cancel();viewport.UpdateLayout();
+        Assert.Equal((60d,40d),(viewport.HorizontalOffset,viewport.VerticalOffset));
+        Assert.Empty(model.Document!.Annotations);
+        var end=canvas.ToDocumentPoint(viewport.TranslatePoint(new Point(100,100),canvas));
+        canvas.BeginShape(end);canvas.FinishShape(end);
+        var rectangle=Assert.Single(model.Document.Annotations);
+        Assert.Equal((20d,30d,140d,110d),(rectangle.X,rectangle.Y,rectangle.Width,rectangle.Height));
+        model.History!.Undo();Assert.Empty(model.Document.Annotations);Assert.False(model.History.CanUndo);
+    });
+
     [Fact] public void PanningClampsAtTheEdgesAndReversesWithoutADeadZone()=>Sta.Run(()=>
     {
         var surface=new Surface();var pan=surface.Pan;var viewport=surface.Viewport;Assert.True(pan.Begin(new(0,0)));

@@ -23,6 +23,25 @@ public class WheelZoomTests
         }
         finally{w.CloseForExit();TestFiles.DeleteDirectory(path);}
     });
+    [Fact] public void WheelZoomBetweenClicksKeepsRectangleInDocumentCoordinates()=>Sta.Run(()=>
+    {
+        var path=Path.Combine(Path.GetTempPath(),Guid.NewGuid().ToString("N"));
+        var window=new EditorWindow(new(Path.Combine(path,"Library")),new SettingsService(path));
+        try
+        {
+            window.Model.Open(new(){Width=100,Height=100,OriginalPng=PngFileWriter.Encode(RenderingTests.Image(100,100))});
+            window.Model.Tool=EditorTool.Rectangle;
+            var canvas=(EditorCanvas)((Grid)window.FindName("CanvasHost")).Children[0];
+            canvas.BeginShape(new(10,15));canvas.FinishShape(new(10,15));
+            Wheel((ScrollViewer)window.FindName("ImageScroll"),-120);
+            Assert.Empty(window.Model.Document!.Annotations);
+            var end=canvas.ToDocumentPoint(new Point(50,75));
+            canvas.BeginShape(end);canvas.FinishShape(end);
+            var rectangle=Assert.Single(window.Model.Document.Annotations);
+            Assert.Equal((10d,15d,30d,45d),(rectangle.X,rectangle.Y,rectangle.Width,rectangle.Height));
+        }
+        finally{window.CloseForExit();TestFiles.DeleteDirectory(path);}
+    });
     private static MouseWheelEventArgs Wheel(UIElement target,int delta)
     {var e=new MouseWheelEventArgs(Mouse.PrimaryDevice,0,delta){RoutedEvent=UIElement.PreviewMouseWheelEvent};target.RaiseEvent(e);return e;}
 }

@@ -71,7 +71,7 @@ public partial class EditorWindow : Window
             DiagnosticStage?.Invoke($"editor.renderTarget.mode={source.CompositionTarget.RenderMode}");
         };
         canvas=new(){Model=Model};CanvasHost.Children.Add(canvas);HistoryList.ItemsSource=historyItems;InitializeRibbonIcons();InitializeLineStyleItems();UpdateCaptureTooltips();ImageScroll.PreviewMouseWheel+=ImageMouseWheel;
-        imagePan=new(ImageScroll,()=>!busy&&Model.Document is not null,canvas.CancelGesture);
+        imagePan=new(ImageScroll,()=>!busy&&Model.Document is not null,canvas.CancelDragForNavigation);
         InitializeImageImport(imagePicker??new ImagePathPicker(),clipboardImages??new ClipboardImageSource());
         blankImagePicker=pickBlankImage??(()=>{var dialog=new BlankImageDialog{Owner=this,Icon=Icon};return dialog.ShowDialog()==true?dialog.Result:null;});
         foreach(var slider in new[]{ThicknessSlider,MosaicSlider})
@@ -528,11 +528,11 @@ public partial class EditorWindow : Window
         catch(Exception error){MessageBox.Show(this,error.Message,"이미지 크기 변경",MessageBoxButton.OK,MessageBoxImage.Warning);}
         finally{SetBusy(false);}
     }
-    private void SetZoom(double zoom){imagePan.Cancel();canvas.CancelGesture();Model.Zoom=Math.Clamp(zoom,.1,4);canvas.Refresh();UpdateCommands();}
+    private void SetZoom(double zoom){imagePan.Cancel();canvas.CancelDragForNavigation();Model.Zoom=Math.Clamp(zoom,.1,4);canvas.Refresh();UpdateCommands();}
     private void ImageMouseWheel(object sender,MouseWheelEventArgs e)
     {
         if(Model.Document is null)return;e.Handled=true;if(busy||imagePan.IsActive||e.Delta==0)return;
-        canvas.CancelGesture();SetZoom(Model.Zoom*Math.Pow(1.25,-e.Delta/120.0));
+        SetZoom(Model.Zoom*Math.Pow(1.25,-e.Delta/120.0));
     }
     private void FitClick(object sender,RoutedEventArgs e)=>Fit();private void ZoomOutClick(object sender,RoutedEventArgs e)=>SetZoom(Model.Zoom/1.25);private void ZoomInClick(object sender,RoutedEventArgs e)=>SetZoom(Model.Zoom*1.25);
     private void WindowKeyDown(object sender,KeyEventArgs e)

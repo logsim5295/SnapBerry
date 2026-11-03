@@ -2,12 +2,14 @@ namespace SnapBerry.Core;
 // 드래그 그리기와 시작점 클릭→끝점 클릭 그리기를 하나의 상태 머신으로 처리한다.
 public sealed class ShapePlacement
 {
-    private PixelPoint start;private bool waitingForEnd;private double threshold,scaleX=1,scaleY=1;
+    private PixelPoint start;private double threshold,scaleX=1,scaleY=1;
+    public bool WaitingForEnd {get;private set;}
     public bool Active=>Preview is not null;public Annotation? Preview {get;private set;}
     public Annotation? PointerDown(PixelPoint point,AnnotationKind kind,AnnotationStyle style,double threshold=3,double scaleX=1,double scaleY=1)
     {
-        if(waitingForEnd){Move(point);return Commit();}
-        start=point;this.threshold=threshold;this.scaleX=scaleX;this.scaleY=scaleY;Preview=new(){Kind=kind,X=point.X,Y=point.Y,Width=0,Height=0,Style=style};return null;
+        this.scaleX=scaleX;this.scaleY=scaleY;
+        if(WaitingForEnd){Move(point);return Commit();}
+        start=point;this.threshold=threshold;Preview=new(){Kind=kind,X=point.X,Y=point.Y,Width=0,Height=0,Style=style};return null;
     }
     public void Move(PixelPoint point)
     {
@@ -19,8 +21,8 @@ public sealed class ShapePlacement
     public Annotation? PointerUp(PixelPoint point)
     {
         // 이동량이 작으면 첫 클릭으로 판단하고 두 번째 클릭에서 확정하도록 대기한다.
-        if(Preview is null||waitingForEnd)return null;
-        Move(point);if(Math.Sqrt(Math.Pow((point.X-start.X)*scaleX,2)+Math.Pow((point.Y-start.Y)*scaleY,2))<=threshold){waitingForEnd=true;return null;}return Commit();
+        if(Preview is null||WaitingForEnd)return null;
+        Move(point);if(Math.Sqrt(Math.Pow((point.X-start.X)*scaleX,2)+Math.Pow((point.Y-start.Y)*scaleY,2))<=threshold){WaitingForEnd=true;return null;}return Commit();
     }
     private Annotation? Commit()
     {
@@ -29,5 +31,5 @@ public sealed class ShapePlacement
         if(value.Kind==AnnotationKind.Arrow&&Math.Abs(value.Width*scaleX)<=2&&Math.Abs(value.Height*scaleY)<=2)return null;
         Cancel();return value;
     }
-    public void Cancel(){Preview=null;waitingForEnd=false;}
+    public void Cancel(){Preview=null;WaitingForEnd=false;}
 }

@@ -24,7 +24,7 @@ public sealed class EditorSurface : Control,IDisposable
     public event Action? SelectionChanged;
     public event Action? TextEditRequested;
     public event Action<Exception>? EditFailed;
-    public double Zoom {get=>zoom;set{zoom=Math.Clamp(value,.1,4);gesture.Cancel();Refresh();}}
+    public double Zoom {get=>zoom;set{zoom=Math.Clamp(value,.1,4);gesture.CancelDragForNavigation();Refresh();}}
     public EditorSurface(DesktopEditor editor)
     {this.editor=editor;gesture=new(editor);Focusable=true;ClipToBounds=true;editor.Changed+=Changed;editor.MagicWandChanged+=Changed;Refresh();}
     private void Changed(object? sender,EventArgs args)=>Refresh();
@@ -97,7 +97,7 @@ public sealed class EditorSurface : Control,IDisposable
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);if(editor.Document is null)return;var properties=e.GetCurrentPoint(this).Properties;
-        if(properties.IsMiddleButtonPressed){gesture.Cancel();panning=true;panPosition=e.GetPosition(TopLevel.GetTopLevel(this));Cursor=new(StandardCursorType.Hand);e.Pointer.Capture(this);e.Handled=true;return;}
+        if(properties.IsMiddleButtonPressed){gesture.CancelDragForNavigation();panning=true;panPosition=e.GetPosition(TopLevel.GetTopLevel(this));Cursor=new(StandardCursorType.Hand);e.Pointer.Capture(this);e.Handled=true;return;}
         if(!properties.IsLeftButtonPressed||panning)return;
         if(e.ClickCount==2&&editor.Tool!=DesktopTool.MagicWand)
         {

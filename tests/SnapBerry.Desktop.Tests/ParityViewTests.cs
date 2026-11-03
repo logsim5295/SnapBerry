@@ -151,6 +151,27 @@ public class ParityViewTests
         }
         finally{window.SetBusy(false);await window.RequestExitAsync();window.Dispose();window.Close();if(Directory.Exists(path))Directory.Delete(path,true);}
     }
+    [AvaloniaFact] public async Task MiddleDragBetweenClicksKeepsTheRectangleStart()
+    {
+        var path=Path.Combine(Path.GetTempPath(),"SnapBerry-pan-"+Guid.NewGuid());
+        using var editor=new DesktopEditor();using var window=new MainWindow(editor,new NoCapture(),path);
+        try
+        {
+            editor.Open(EditorTests.Record());window.Show();Dispatcher.UIThread.RunJobs();
+            var surface=(EditorSurface)window.FindControl<Panel>("SurfaceHost")!.Children[0];
+            editor.Tool=DesktopTool.Rectangle;
+            Point At(int x,int y)=>surface.TranslatePoint(new(x*surface.Zoom,y*surface.Zoom),window)!.Value;
+            window.MouseDown(At(10,10),MouseButton.Left);window.MouseUp(At(10,10),MouseButton.Left);
+            window.MouseDown(At(15,20),MouseButton.Middle);
+            window.MouseMove(At(25,25),RawInputModifiers.MiddleMouseButton);
+            window.MouseUp(At(25,25),MouseButton.Middle);
+            Assert.Empty(editor.Document!.Annotations);
+            window.MouseDown(At(50,40),MouseButton.Left);window.MouseUp(At(50,40),MouseButton.Left);
+            var rectangle=Assert.Single(editor.Document.Annotations);
+            Assert.Equal((10d,10d,40d,30d),(rectangle.X,rectangle.Y,rectangle.Width,rectangle.Height));
+        }
+        finally{window.SetBusy(false);await window.RequestExitAsync();window.Dispose();window.Close();if(Directory.Exists(path))Directory.Delete(path,true);}
+    }
     [AvaloniaFact] public async Task DraggingTheMosaicSliderIsOneUndoAction()
     {
         var path=Path.Combine(Path.GetTempPath(),"SnapBerry-parity-drag-"+Guid.NewGuid());using var editor=new DesktopEditor();using var window=new MainWindow(editor,new NoCapture(),path);

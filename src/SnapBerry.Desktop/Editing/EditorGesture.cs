@@ -81,5 +81,6 @@ public sealed class EditorGesture(DesktopEditor editor)
         else if(CropPreview is PixelRect crop&&crop.Width>0&&crop.Height>0&&editor.Document is AnnotationDocument doc)editor.History!.Crop(crop.Translate(-doc.CropBounds.X,-doc.CropBounds.Y));
         Cancel();
     }
+    public void CancelDragForNavigation(){if(!shape.WaitingForEnd)Cancel();}
     public void Cancel(){original=null;Preview=null;CropPreview=null;Active=false;resize=false;shape.Cancel();cropCorner.Cancel();}
 }
