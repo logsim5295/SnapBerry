@@ -148,7 +148,12 @@ public sealed class CaptureLibraryStore(string directory)
         ValidatePng(png);
         if(BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16,4))>120||BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20,4))>120)throw new InvalidDataException("Thumbnail dimensions exceed limits.");
     }
-    private static void Write(ZipArchive zip,string name,byte[] bytes){using var stream=zip.CreateEntry(name,CompressionLevel.Fastest).Open();stream.Write(bytes);}
+    // PNG는 이미 압축되어 있어 deflate가 CPU만 쓰고 크기를 줄이지 못하므로 그대로 저장한다. 읽기도 그만큼 빨라진다.
+    private static void Write(ZipArchive zip,string name,byte[] bytes)
+    {
+        var level=name.EndsWith(".png",StringComparison.OrdinalIgnoreCase)?CompressionLevel.NoCompression:CompressionLevel.Fastest;
+        using var stream=zip.CreateEntry(name,level).Open();stream.Write(bytes);
+    }
     // 압축 해제 전후 크기를 모두 제한하여 과도한 메모리 할당을 방지한다.
     private static byte[] Read(ZipArchive zip,string name,int limit)
     {var entry=zip.GetEntry(name)??throw new InvalidDataException("Capture data is missing.");if(entry.Length<=0||entry.Length>limit)throw new InvalidDataException("Capture data exceeds limits.");using var stream=entry.Open();using var output=new MemoryStream();var buffer=new byte[8192];int read;while((read=stream.Read(buffer))>0){if(output.Length+read>limit)throw new InvalidDataException();output.Write(buffer,0,read);}return output.ToArray();}

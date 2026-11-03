@@ -33,6 +33,17 @@ public class LibraryTests
         }
         finally{TestFiles.DeleteDirectory(path);}
     });
+    [Fact] public void PngEntriesAreStoredWithoutDeflate()=>Sta.Run(()=>
+    {
+        // PNG는 이미 압축되어 있으므로 ZIP 항목은 원본 크기 그대로 저장하고 JSON만 압축한다.
+        var path=Temp();try
+        {
+            var record=Record();new CaptureLibraryStore(path).SaveAsync(record).GetAwaiter().GetResult();
+            using var zip=System.IO.Compression.ZipFile.OpenRead(Path.Combine(path,record.Id.ToString("N")+".qcapture"));
+            var png=zip.GetEntry("original.png")!;Assert.Equal(png.Length,png.CompressedLength);Assert.Equal(record.OriginalPng.Length,png.Length);
+        }
+        finally{TestFiles.DeleteDirectory(path);}
+    });
     [Fact] public void CaptureWithoutExportSurvivesRestart()=>Sta.Run(()=>
     {var path=Temp();try{var record=Record();new CaptureLibraryStore(path).SaveAsync(record).GetAwaiter().GetResult();var reopened=new CaptureLibraryStore(path).LoadAsync(record.Id).GetAwaiter().GetResult();Assert.Equal(record.OriginalPng,reopened.OriginalPng);Assert.Equal("한글",reopened.Annotations.Single().Text);Assert.Equal(3,reopened.Sequence.NextNumeric);Assert.Equal(4,reopened.Sequence.NextAlphabetic);}finally{if(Directory.Exists(path))Directory.Delete(path,true);}});
     [Fact] public void StickerAssetsSurviveCatalogRemoval()=>Sta.Run(()=>

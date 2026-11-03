@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using SnapBerry.App.Import;
 using SnapBerry.App.Editor;
 using SnapBerry.App.Capture;
 using SnapBerry.App.Library;
@@ -66,10 +68,17 @@ public sealed class AppHost : IDisposable
             return await new CaptureCoordinator().SelectAsync(frame,mode,window.ShowRegionGuides);
         },async selected=>
         {
-            var record=new CaptureRecord{Width=selected.Image.PixelWidth,Height=selected.Image.PixelHeight,Mode=mode,OriginalPng=PngFileWriter.Encode(selected.Image)};
-            await window.OpenNewAsync(record);
+            var (record,image)=await CreateRecordAsync(selected,mode);
+            await window.OpenNewAsync(record,image);
         },Show,window.SetBusy);
     }
+    // 선택 영역을 전체 화면 프레임에서 분리한 독립 비트맵으로 만들고, PNG 인코딩은 UI 스레드 밖에서 수행한다.
+    internal static Task<(CaptureRecord Record,BitmapSource Image)> CreateRecordAsync(CaptureFrame selected,CaptureMode mode)=>Task.Run(()=>
+    {
+        var image=ImageImportService.CopyImage(selected.Image);
+        var record=new CaptureRecord{Width=image.PixelWidth,Height=image.PixelHeight,Mode=mode,OriginalPng=PngFileWriter.Encode(image)};
+        return (record,image);
+    });
     // 취소 시에는 편집기를 숨긴 상태로 끝내고, 성공 또는 오류일 때만 편집기를 표시한다.
     internal static async Task RunCaptureAsync(Func<Task<CaptureFrame?>> select,Func<CaptureFrame,Task> open,Action showEditor,Action<bool> setBusy)
     {

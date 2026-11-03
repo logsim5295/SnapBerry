@@ -8,6 +8,15 @@ namespace SnapBerry.Windows.Tests;
 // 선택 객체의 텍스트·스타일 편집과 번호 변경에 따른 다음 순번 갱신을 검증한다.
 public class EditorTests
 {
+    [Fact] public void OpenReusesAnAlreadyDecodedImage()=>Sta.Run(()=>
+    {
+        // 캡처 직후에는 PNG를 다시 디코딩하지 않고 전달받은 동결 비트맵을 원본으로 사용한다.
+        var image=RenderingTests.Image(20,10);var record=new CaptureRecord{Width=20,Height=10,OriginalPng=PngFileWriter.Encode(image)};
+        var model=new EditorViewModel();model.Open(record,image);Assert.Same(image,model.Original);
+        Assert.Throws<System.IO.InvalidDataException>(()=>new EditorViewModel().Open(record,RenderingTests.Image(10,10)));
+        var thawed=new System.Windows.Media.Imaging.CroppedBitmap(image,new System.Windows.Int32Rect(0,0,20,10));
+        Assert.Throws<ArgumentException>(()=>new EditorViewModel().Open(record,thawed));
+    });
     [Theory] [InlineData(StepSequenceMode.Numeric,"4","1","2")] [InlineData(StepSequenceMode.Alphabetic,"d","a","b")] [InlineData(StepSequenceMode.Alphabetic,"z","z","aa")] [InlineData(StepSequenceMode.UppercaseAlphabetic,"D","A","B")] [InlineData(StepSequenceMode.UppercaseAlphabetic,"Z","Z","AA")] [InlineData(StepSequenceMode.UppercaseAlphabetic,"AZ","AZ","BA")]
     public void EditedStepContinuesFromEditedValueAndUndoRestoresBoth(StepSequenceMode mode,string original,string edited,string next)=>Sta.Run(()=>
     {

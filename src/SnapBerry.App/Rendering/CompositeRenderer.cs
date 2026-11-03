@@ -36,27 +36,38 @@ public sealed class CompositeRenderer
     {if(width<=0||height<=0||checked((long)width*height*20)>512L*1024*1024)throw new InvalidOperationException("Image is too large. Capture a smaller region.");}
     internal static BitmapSource Mosaic(BitmapSource input,IReadOnlyList<Annotation> items)
     {
-        // 겹친 영역에는 더 큰 블록을 적용한다. 평균색은 원본에서 계산하며 블록별로 캐시한다.
-        var areas=items.Where(x=>x.Kind==AnnotationKind.Mosaic).ToArray();if(areas.Length==0)return input;
-        var w=input.PixelWidth;var h=input.PixelHeight;var converted=new FormatConvertedBitmap(input,PixelFormats.Bgra32,null,0);var source=new byte[w*h*4];converted.CopyPixels(source,w*4,0);var output=source.ToArray();var sizes=new int[w*h];
-        foreach(var a in areas)
+        // 겹친 영역에는 더 큰 블록을 적용한다. 블록 격자는 이미지 원점에 고정되고 평균색은 주석 밖 픽셀을 포함한 블록 전체에서 계산한다.
+        // 전체 픽셀을 순회하지 않고, 모자이크 영역의 합집합을 블록 경계까지 넓힌 부분만 읽고 계산한다.
+        var w=input.PixelWidth;var h=input.PixelHeight;
+        var areas=new List<(int X1,int Y1,int X2,int Y2,int Size)>();int left=w,top=h,right=0,bottom=0;
+        foreach(var a in items)
         {
+            if(a.Kind!=AnnotationKind.Mosaic)continue;var size=Math.Clamp(a.MosaicBlockSize,1,1024);
             var x1=Math.Clamp((int)a.X,0,w);var y1=Math.Clamp((int)a.Y,0,h);var x2=Math.Clamp((int)Math.Ceiling(a.X+a.Width),0,w);var y2=Math.Clamp((int)Math.Ceiling(a.Y+a.Height),0,h);
-            for(var y=y1;y<y2;y++)for(var x=x1;x<x2;x++)sizes[y*w+x]=Math.Max(sizes[y*w+x],Math.Clamp(a.MosaicBlockSize,1,1024));
+            if(x2<=x1||y2<=y1)continue;areas.Add((x1,y1,x2,y2,size));
+            left=Math.Min(left,x1/size*size);top=Math.Min(top,y1/size*size);right=Math.Max(right,Math.Min(w,(x2+size-1)/size*size));bottom=Math.Max(bottom,Math.Min(h,(y2+size-1)/size*size));
         }
-        var colors=new Dictionary<(int,int,int),byte[]>();
-        for(var y=0;y<h;y++)for(var x=0;x<w;x++)
+        if(areas.Count==0)return input;
+        var pixels=input.Format==PixelFormats.Bgra32?input:new FormatConvertedBitmap(input,PixelFormats.Bgra32,null,0);
+        var rw=right-left;var rh=bottom-top;var stride=rw*4;var source=new byte[checked(stride*rh)];pixels.CopyPixels(new Int32Rect(left,top,rw,rh),source,stride,0);
+        var sizes=new ushort[rw*rh];
+        foreach(var (x1,y1,x2,y2,size) in areas)for(var y=y1;y<y2;y++)for(var x=x1;x<x2;x++){var i=(y-top)*rw+x-left;if(sizes[i]<size)sizes[i]=(ushort)size;}
+        var output=(byte[])source.Clone();var colors=new Dictionary<(int,int,int),uint>();
+        for(var y=0;y<rh;y++)for(var x=0;x<rw;x++)
         {
-            var size=sizes[y*w+x];if(size==0)continue;var bx=x/size*size;var by=y/size*size;
+            var size=sizes[y*rw+x];if(size==0)continue;var bx=(x+left)/size*size;var by=(y+top)/size*size;
             if(!colors.TryGetValue((size,bx,by),out var color))
             {
-                long b=0,g=0,r=0,alpha=0,count=0;
-                for(var yy=by;yy<Math.Min(by+size,h);yy++)for(var xx=bx;xx<Math.Min(bx+size,w);xx++){var i=(yy*w+xx)*4;b+=source[i];g+=source[i+1];r+=source[i+2];alpha+=source[i+3];count++;}
-                color=[(byte)(b/count),(byte)(g/count),(byte)(r/count),(byte)(alpha/count)];colors[(size,bx,by)]=color;
+                long b=0,g=0,r=0,alpha=0,count=0;var xe=Math.Min(bx+size,w);var ye=Math.Min(by+size,h);
+                for(var yy=by;yy<ye;yy++){var row=(yy-top)*stride-left*4;for(var xx=bx;xx<xe;xx++){var i=row+xx*4;b+=source[i];g+=source[i+1];r+=source[i+2];alpha+=source[i+3];count++;}}
+                color=(uint)(b/count)|(uint)(g/count)<<8|(uint)(r/count)<<16|(uint)(alpha/count)<<24;colors[(size,bx,by)]=color;
             }
-            Array.Copy(color,0,output,(y*w+x)*4,4);
+            var o=(y*rw+x)*4;output[o]=(byte)color;output[o+1]=(byte)(color>>8);output[o+2]=(byte)(color>>16);output[o+3]=(byte)(color>>24);
         }
-        var bitmap=BitmapSource.Create(w,h,96,96,PixelFormats.Bgra32,null,output,w*4);bitmap.Freeze();return bitmap;
+        // 원본 전체는 한 번만 복사하고 계산한 부분만 덮어써 픽셀 단위로 기존과 같은 이미지를 만든다.
+        var full=new byte[checked(w*4*h)];pixels.CopyPixels(full,w*4,0);
+        for(var y=0;y<rh;y++)Buffer.BlockCopy(output,y*stride,full,((y+top)*w+left)*4,stride);
+        var bitmap=BitmapSource.Create(w,h,96,96,PixelFormats.Bgra32,null,full,w*4);bitmap.Freeze();return bitmap;
     }
     public static Brush Brush(string color)=>new SolidColorBrush((Color)ColorConverter.ConvertFromString(color));
     public static DashStyle GetDashStyle(StrokePattern pattern)=>pattern switch

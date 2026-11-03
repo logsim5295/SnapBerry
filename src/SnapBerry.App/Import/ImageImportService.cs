@@ -33,7 +33,7 @@ public static class ImageImportService
         catch(Exception e)when(e is FileFormatException or NotSupportedException or ArgumentException)
         {throw new InvalidDataException("이미지를 읽을 수 없습니다. 올바른 PNG, JPEG, BMP, GIF, TIFF 파일을 선택해 주세요.",e);}
     }
-    private static BitmapSource CopyImage(BitmapSource image)
+    internal static BitmapSource CopyImage(BitmapSource image)
     {
         try{CompositeRenderer.GuardSize(image.PixelWidth,image.PixelHeight);}
         catch(InvalidOperationException e){throw new InvalidDataException("이미지가 너무 큽니다. 더 작은 이미지를 선택해 주세요.",e);}

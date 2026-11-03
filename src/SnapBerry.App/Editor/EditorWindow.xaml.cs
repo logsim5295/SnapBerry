@@ -121,12 +121,12 @@ public partial class EditorWindow : Window
         if(!value)restoreHistoryFocusAfterBusy=false;
         if(restoreFocus)RestoreHistoryFocus();
     }
-    public async Task OpenNewAsync(CaptureRecord record)
+    public async Task OpenNewAsync(CaptureRecord record,BitmapSource? image=null)
     {
-        ShowNewRecord(record);autosave.Queue(Model.Snapshot(),Model.History!.CurrentStateToken);await autosave.FlushAsync();await RefreshLibraryAsync();
+        ShowNewRecord(record,image);autosave.Queue(Model.Snapshot(),Model.History!.CurrentStateToken);await autosave.FlushAsync();await RefreshLibraryAsync();
     }
-    private void ShowNewRecord(CaptureRecord record)
-    {EndPropertyDrag();Model.Open(record);HistoryList.SelectedItems.Clear();HistorySearchBox.Clear();selectAfterRefresh=record.Id;Fit();}
+    private void ShowNewRecord(CaptureRecord record,BitmapSource? image=null)
+    {EndPropertyDrag();Model.Open(record,image);HistoryList.SelectedItems.Clear();HistorySearchBox.Clear();selectAfterRefresh=record.Id;Fit();}
     public async Task OpenRecordAsync(Guid id)
     {
         // 다른 이력을 열기 전에 현재 문서의 저장을 완료한다. 같은 문서를 다시 열어 수정을 덮지 않는다.

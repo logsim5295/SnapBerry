@@ -39,18 +39,20 @@ public sealed partial class EditorViewModel
     }
     public void UpdateSelectedStyle(Func<AnnotationStyle,AnnotationStyle> update)
     {Style=update(Style);if(Selected is Annotation a)History!.Replace(MeasureText(a with{Style=update(a.Style)}));}
-    public void Open(CaptureRecord value)
+    public void Open(CaptureRecord value,BitmapSource? image=null)
     {
         // 검증과 새 문서 구성을 끝낸 뒤 상태를 교체한다. 열기에 실패하면 기존 편집 상태를 유지한다.
+        // 캡처 직후처럼 이미 디코딩된 동결 비트맵이 있으면 PNG를 다시 디코딩하지 않는다.
+        if(image is {IsFrozen:false})throw new ArgumentException("Image must be frozen.",nameof(image));
         CaptureLibraryStore.Validate(value);CaptureLibraryStore.ValidateImageAssetSizes(value.OriginalPng.LongLength,value.StickerAssets.Values.Select(a=>a.LongLength));
-        CompositeRenderer.GuardSize(value.Width,value.Height);var original=PngFileWriter.Decode(value.OriginalPng);
+        CompositeRenderer.GuardSize(value.Width,value.Height);var original=image??PngFileWriter.Decode(value.OriginalPng);
         if(original.PixelWidth!=value.Width||original.PixelHeight!=value.Height)throw new InvalidDataException("Image size does not match.");
         var document=new AnnotationDocument(value.Width,value.Height){Sequence=value.Sequence,CropBounds=value.CropBounds??new(0,0,value.Width,value.Height),ResizeSize=value.ResizeSize,BackgroundAssetHash=value.BackgroundAssetHash};document.Annotations.AddRange(value.Annotations);
         var assets=new StickerAssetStore();assets.Import(value.StickerAssets);foreach(var a in value.Annotations.Where(x=>x.Kind==AnnotationKind.Sticker))assets.GetBitmap(a.AssetHash);
         if(value.BackgroundAssetHash is {} background)
         {
-            var image=assets.GetBitmap(background);
-            if(image.PixelWidth!=value.Width||image.PixelHeight!=value.Height)throw new InvalidDataException("누끼 이미지의 크기가 원본과 다릅니다.");
+            var backgroundImage=assets.GetBitmap(background);
+            if(backgroundImage.PixelWidth!=value.Width||backgroundImage.PixelHeight!=value.Height)throw new InvalidDataException("누끼 이미지의 크기가 원본과 다릅니다.");
         }
         var history=new CommandHistory(document);history.MarkPersisted(history.CurrentStateToken);history.Changed+=(_,_)=>{composite=null;ClearMagicWand();Changed?.Invoke(this,EventArgs.Empty);};
         record=value;Original=original;Document=document;Assets=assets;History=history;SelectedId=null;composite=null;ClearMagicWand();Changed?.Invoke(this,EventArgs.Empty);
