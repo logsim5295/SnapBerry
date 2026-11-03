@@ -30,14 +30,21 @@ public sealed class EditorCanvas : FrameworkElement
     public void Refresh(){var bytes=Model.MagicWandPreview;if(!ReferenceEquals(bytes,wandBytes)){wandBytes=bytes;wandOverlay=bytes is null?null:SnapBerry.App.Export.PngFileWriter.Decode(bytes);}if(lastDocument!=Model.Document||lastCropBounds!=Model.Document?.CropBounds||lastOutputSize!=Model.Document?.OutputSize){CancelGesture();lastDocument=Model.Document;lastCropBounds=Model.Document?.CropBounds;lastOutputSize=Model.Document?.OutputSize;}Width=(Model.Document?.OutputSize.Width??900)*Model.Zoom;Height=(Model.Document?.OutputSize.Height??600)*Model.Zoom;InvalidateVisual();}
     public void CancelGesture(){shape.Cancel();crop.Cancel();ClipToBounds=true;dragging=false;before=null;preview=null;previewLayers=null;resizing=false;if(IsMouseCaptured)ReleaseMouseCapture();InvalidateVisual();}
     internal void CancelDragForNavigation(){if(!shape.WaitingForEnd)CancelGesture();}
-    protected override void OnLostMouseCapture(MouseEventArgs e){base.OnLostMouseCapture(e);if(dragging||crop.Active)CancelGesture();}
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        if(dragging||crop.Active||(shape.Active&&!shape.WaitingForEnd))CancelGesture();
+    }
     internal Annotation? ShapePreview=>shape.Preview is Annotation a&&a.Kind==AnnotationKind.Mosaic?a with{MosaicBlockSize=Model.MosaicSize}:shape.Preview;
     internal bool BeginShape(PixelPoint point)
     {
         if(Model.Document is null||Model.Tool is not (EditorTool.Arrow or EditorTool.Rectangle or EditorTool.Mosaic))return false;
         Model.SelectedId=null;SelectionChanged?.Invoke();
         var kind=Model.Tool switch{EditorTool.Arrow=>AnnotationKind.Arrow,EditorTool.Rectangle=>AnnotationKind.Rectangle,_=>AnnotationKind.Mosaic};
-        var completed=shape.PointerDown(point,kind,Model.Style,3,ViewScaleX,ViewScaleY);preview=ShapePreview;CommitShape(completed);InvalidateVisual();return true;
+        var completed=shape.PointerDown(point,kind,Model.Style,
+            Math.Max(3,SystemParameters.MinimumHorizontalDragDistance),ViewScaleX,ViewScaleY,
+            verticalThreshold:Math.Max(3,SystemParameters.MinimumVerticalDragDistance));
+        preview=ShapePreview;CommitShape(completed);InvalidateVisual();return true;
     }
     internal void FinishShape(PixelPoint point)
     {
@@ -168,7 +175,11 @@ public sealed class EditorCanvas : FrameworkElement
                 resizing=IsResizeHandle(before,start);
                 preview=before;dragging=true;CaptureMouse();InvalidateVisual();return;
             }
-            if(BeginShape(start)){if(shape.Active)CaptureMouse();return;}
+            if(BeginShape(start))
+            {
+                if(shape.Active&&!shape.WaitingForEnd&&!CaptureMouse())CancelGesture();
+                e.Handled=true;return;
+            }
             if(e.ClickCount==2){var a=AnnotationHitTester.Hit(Model.Document.Annotations,start,6,ViewScaleX,ViewScaleY);if(a is not null&&(a.Kind is AnnotationKind.Text or AnnotationKind.StepMarker||(a.Kind==AnnotationKind.Sticker&&a.StickerId.StartsWith("key-")))){Model.SelectedId=a.Id;TextRequested?.Invoke(start,a);return;}}
             switch(Model.Tool)
             {
@@ -235,7 +246,7 @@ public sealed class EditorCanvas : FrameworkElement
             try{FinishCrop(ViewPoint(e));}catch(ArgumentOutOfRangeException ex){MessageBox.Show(ex.Message,"SnapBerry");}
             e.Handled=true;return;
         }
-        if(shape.Active){FinishShape(Point(e));return;}
+        if(shape.Active){FinishShape(Point(e));e.Handled=true;return;}
         if(dragging)
         {
             try{FinishAnnotation(Point(e));}
