@@ -18,7 +18,7 @@ internal static class TrayMenuIcons
         var images=new List<System.Drawing.Bitmap>();menu.Disposed+=(_,_)=>{foreach(var image in images)image.Dispose();};
         foreach(var item in menu.Items.OfType<Forms.ToolStripMenuItem>())
         {
-            var name=item.Text switch{"편집기 열기"=>"Open","영역 캡처"=>"Region","창 캡처"=>"Window","전체 화면 캡처"=>"Desktop","설정"=>"Settings","종료"=>"Exit",_=>throw new ArgumentOutOfRangeException(nameof(item.Text))};
+            var name=item.Text switch{"편집기 열기"=>"Open","영역 캡처"=>"Region","고정 영역 캡처"=>"Region","창 캡처"=>"Window","전체 화면 캡처"=>"Desktop","설정"=>"Settings","종료"=>"Exit",_=>throw new ArgumentOutOfRangeException(nameof(item.Text))};
             var visual=new DrawingVisual();using(var dc=visual.RenderOpen())dc.DrawImage(RibbonIcons.Create(name),new Rect(0,0,size,size));
             var source=new RenderTargetBitmap(size,size,96,96,PixelFormats.Pbgra32);source.Render(visual);
             using var stream=new MemoryStream(PngFileWriter.Encode(source));using var decoded=new System.Drawing.Bitmap(stream);

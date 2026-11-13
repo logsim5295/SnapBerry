@@ -115,7 +115,7 @@ public partial class EditorWindow : Window
         // 작업 중 목록 항목이 교체될 수도 있으므로 비활성화 전에 출처를 기억한다.
         if(value&&!busy)restoreHistoryFocusAfterBusy=HistoryList.IsKeyboardFocusWithin||IsHistoryCopySource(FocusManager.GetFocusedElement(this) as DependencyObject);
         var restoreFocus=!value&&busy&&restoreHistoryFocusAfterBusy;
-        if(value){imagePan.Cancel();EndPropertyDrag();}busy=value;EmptyRegionCaptureButton.IsEnabled=RegionCaptureButton.IsEnabled=WindowCaptureButton.IsEnabled=DesktopCaptureButton.IsEnabled=!value;MainRibbon.IsEnabled=!value;canvas.IsEnabled=!value;HistoryList.IsEnabled=HistorySearchPanel.IsEnabled=!value;UpdateCommands();UpdateStickerPickerVisibility();
+        if(value){imagePan.Cancel();EndPropertyDrag();}busy=value;EmptyRegionCaptureButton.IsEnabled=RegionCaptureButton.IsEnabled=WindowCaptureButton.IsEnabled=DesktopCaptureButton.IsEnabled=FixedRegionCaptureButton.IsEnabled=!value;MainRibbon.IsEnabled=!value;canvas.IsEnabled=!value;HistoryList.IsEnabled=HistorySearchPanel.IsEnabled=!value;UpdateCommands();UpdateStickerPickerVisibility();
         // 비동기 작업이 끝나면 다음 사용자 입력을 기다리지 않고 명령 버튼의 활성화 상태를 갱신한다.
         CommandManager.InvalidateRequerySuggested();
         if(!value)restoreHistoryFocusAfterBusy=false;
@@ -423,7 +423,7 @@ public partial class EditorWindow : Window
             var image=Model.Composite()!;var bytes=await Task.Run(()=>ImageFileWriter.Encode(image,format));
             await ImageFileWriter.WriteAsync(path,bytes,true);Model.History.MarkExported(token);
             settings=settings with{LastSaveDirectory=Path.GetDirectoryName(path)!,LastSaveFormat=format};
-            try{settingsService.Save(settings);}catch(IOException){}
+            try{settings=settingsService.Load() with{LastSaveDirectory=settings.LastSaveDirectory,LastSaveFormat=settings.LastSaveFormat};settingsService.Save(settings);}catch(IOException){}
             var saved=$"{ImageFileWriter.GetDisplayName(format)} 저장됨";
             StatusText.Text=Model.History.IsPersistenceDirty?saved+" · 이력 저장 대기 중":saved;
         }
@@ -601,6 +601,7 @@ public partial class EditorWindow : Window
         RegionCaptureButton.ToolTip=$"영역 캡처 ({settings.RegionKey})";
         WindowCaptureButton.ToolTip=$"창 캡처 ({settings.WindowKey})";
         DesktopCaptureButton.ToolTip=$"전체 화면 캡처 ({settings.DesktopKey})";
+        FixedRegionCaptureButton.ToolTip=$"고정 영역 캡처 ({settings.FixedRegionKey}) · 처음 누르면 테두리 표시";
     }
     private void InitializeLineStyleItems()
     {
@@ -626,6 +627,6 @@ public partial class EditorWindow : Window
         SettingsGroup.LargeImageSource=SettingsGroup.SmallImageSource=RibbonSettings.LargeImageSource;
         PropertiesGroup.LargeImageSource=PropertiesGroup.SmallImageSource=RibbonIcons.Create("Properties",settings.Theme);
         foreach(var button in ToolsPanel.Items.OfType<RibbonToggleButton>())button.LargeImageSource=button.SmallImageSource=RibbonIcons.Create((string)button.Tag,settings.Theme);
-        foreach(var (button,name) in new[]{(NewBlankImageButton,"NewBlank"),(OpenImageButton,"ImageFile"),(PasteImageButton,"Paste"),(RegionCaptureButton,"Region"),(WindowCaptureButton,"Window"),(DesktopCaptureButton,"Desktop"),(UndoButton,"Undo"),(RedoButton,"Redo"),(DeleteButton,"Delete"),(EditButton,"Edit"),(CopyButton,"Copy"),(SaveButton,"Save"),(RibbonZoomOut,"ZoomOut"),(RibbonZoomIn,"ZoomIn"),(RibbonFit,"Fit"),(RibbonHistory,"History")})button.LargeImageSource=button.SmallImageSource=RibbonIcons.Create(name,settings.Theme);
+        foreach(var (button,name) in new[]{(NewBlankImageButton,"NewBlank"),(OpenImageButton,"ImageFile"),(PasteImageButton,"Paste"),(RegionCaptureButton,"Region"),(WindowCaptureButton,"Window"),(DesktopCaptureButton,"Desktop"),(FixedRegionCaptureButton,"Region"),(UndoButton,"Undo"),(RedoButton,"Redo"),(DeleteButton,"Delete"),(EditButton,"Edit"),(CopyButton,"Copy"),(SaveButton,"Save"),(RibbonZoomOut,"ZoomOut"),(RibbonZoomIn,"ZoomIn"),(RibbonFit,"Fit"),(RibbonHistory,"History")})button.LargeImageSource=button.SmallImageSource=RibbonIcons.Create(name,settings.Theme);
     }
 }

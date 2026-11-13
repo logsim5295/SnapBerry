@@ -3,6 +3,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using SnapBerry.App.Editor;
+using SnapBerry.App.Interop;
+using System.Windows.Interop;
 namespace SnapBerry.App.Settings;
 // 키 직접 입력·기본값 복원·중복 및 외부 점유 검증을 제공하고, 확정된 설정만 호출자에게 반환한다.
 public sealed class SettingsWindow : Window
@@ -14,6 +16,8 @@ public sealed class SettingsWindow : Window
         Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/SnapBerry;component/Editor/ButtonStyles.xaml",UriKind.Relative)});
         ThemeResources.Initialize(this,settings.Theme);
         Title="설정";Width=480;SizeToContent=SizeToContent.Height;ResizeMode=ResizeMode.NoResize;WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        MaxHeight=Math.Max(1,SystemParameters.WorkArea.Height);
+        SourceInitialized+=(_,_)=>FitWorkArea();Loaded+=(_,_)=>FitWorkArea();DpiChanged+=(_,_)=>FitWorkArea();
         WindowStyle=WindowStyle.None;AllowsTransparency=true;Background=Brushes.Transparent;FontFamily=new FontFamily("Segoe UI");FontSize=13;
         var panel=new StackPanel{Margin=new Thickness(24)};
         var headerRow=new Grid{Margin=new Thickness(0,0,0,24)};headerRow.ColumnDefinitions.Add(new());headerRow.ColumnDefinitions.Add(new(){Width=GridLength.Auto});panel.Children.Add(headerRow);
@@ -53,13 +57,21 @@ public sealed class SettingsWindow : Window
             reset.Click+=(_,_)=>box.SetBindingText(defaultValue);box.TextChanged+=(_,_)=>Validate();box.CaptureStatusChanged+=Validate;return box;
         }
         var defaults=new AppSettings();var region=Input("영역 캡처","RegionHotkey",settings.RegionKey,defaults.RegionKey);var window=Input("창 캡처","WindowHotkey",settings.WindowKey,defaults.WindowKey);var desktop=Input("전체 화면 캡처","DesktopHotkey",settings.DesktopKey,defaults.DesktopKey);
+        var fixedRegion=Input("고정 영역 캡처","FixedRegionHotkey",settings.FixedRegionKey,defaults.FixedRegionKey);
         var guides=new CheckBox{Style=(Style)FindResource("PurpleCheckBoxStyle"),Content="영역 캡처 시 가로·세로 가이드선 표시",IsChecked=settings.ShowRegionGuides,Margin=new Thickness(0,4,0,8)};
         RegisterName("RegionGuidesCheckBox",guides);panel.Children.Add(guides);
         var startup=new CheckBox{Style=(Style)FindResource("PurpleCheckBoxStyle"),Content="Windows 시작 시 실행",IsChecked=settings.StartWithWindows,Margin=new Thickness(0,4,0,12)};RegisterName("StartupCheckBox",startup);panel.Children.Add(startup);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal,HorizontalAlignment=HorizontalAlignment.Right,Margin=new Thickness(0,16,0,0)};
         save=new Button{Content="저장",Height=34,Width=80,Style=(Style)FindResource("PurplePrimaryButtonStyle")};RegisterName("SaveSettingsButton",save);save.Click+=(_,_)=>
-        {Validate();if(!save.IsEnabled)return;Result=settings with{Theme=theme.SelectedIndex==1?AppTheme.Dark:AppTheme.Light,RegionKey=region.Text,WindowKey=window.Text,DesktopKey=desktop.Text,StartWithWindows=startup.IsChecked==true,ShowRegionGuides=guides.IsChecked==true};DialogResult=true;};buttons.Children.Add(save);panel.Children.Add(buttons);
-        Content=new Border{Background=ThemeResources.Get(this,"Surface"),BorderBrush=ThemeResources.Get(this,"Selected"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(8),Child=panel};Validate();
+        {Validate();if(!save.IsEnabled)return;Result=settings with{Theme=theme.SelectedIndex==1?AppTheme.Dark:AppTheme.Light,RegionKey=region.Text,WindowKey=window.Text,DesktopKey=desktop.Text,FixedRegionKey=fixedRegion.Text,StartWithWindows=startup.IsChecked==true,ShowRegionGuides=guides.IsChecked==true};DialogResult=true;};buttons.Children.Add(save);panel.Children.Add(buttons);
+        Content=new Border{Background=ThemeResources.Get(this,"Surface"),BorderBrush=ThemeResources.Get(this,"Selected"),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(8),Child=new ScrollViewer{Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled}};Validate();
+    }
+    private void FitWorkArea()
+    {
+        var handle=new WindowInteropHelper(this).Handle;if(handle==IntPtr.Zero)return;
+        var info=new NativeMethods.MonitorInfo{Size=System.Runtime.InteropServices.Marshal.SizeOf<NativeMethods.MonitorInfo>()};
+        if(NativeMethods.GetMonitorInfo(NativeMethods.MonitorFromWindow(handle,2),ref info))
+            MaxHeight=Math.Max(1,(info.Work.Bottom-info.Work.Top)/Math.Max(1,NativeMethods.GetDpiForWindow(handle)/96d));
     }
     // 트레이에서 열 때 숨김·최소화 편집기를 소유자로 연결하지 않아 편집기가 함께 복원되지 않게 한다.
     internal void ConfigureOwner(Window editor)

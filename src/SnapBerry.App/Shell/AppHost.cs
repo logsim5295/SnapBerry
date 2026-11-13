@@ -19,6 +19,7 @@ public sealed class AppHost : IDisposable
     private readonly StartupDiagnostics? diagnostics;
     private HotkeyService? hotkeys;private HwndSource? source;private readonly System.Drawing.Icon trayIcon;
     private Mutex? editorMarker;
+    private FixedRegionWindow? fixedRegion;
     public AppHost(bool startInTray,StartupDiagnostics? diagnostics=null)
     {
         this.diagnostics=diagnostics;
@@ -49,7 +50,7 @@ public sealed class AppHost : IDisposable
         using(var icon=new System.Drawing.Icon(stream))trayIcon=(System.Drawing.Icon)icon.Clone();
         tray=new(){Text="SnapBerry",Icon=trayIcon,Visible=true};
         var menu=new TrayContextMenu{Renderer=new TrayMenuRenderer(ThemeResources.GetTheme(window))};menu.Items.Add("편집기 열기",null,(_,_)=>Show());
-        menu.Items.Add("영역 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.Region));menu.Items.Add("창 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.Window));menu.Items.Add("전체 화면 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.Desktop));menu.Items.Add(new Forms.ToolStripSeparator());menu.Items.Add("설정",null,async(_,_)=>await SettingsAsync());menu.Items.Add("종료",null,async(_,_)=>await ExitAsync());tray.ContextMenuStrip=menu;tray.DoubleClick+=(_,_)=>Show();
+        menu.Items.Add("영역 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.Region));menu.Items.Add("창 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.Window));menu.Items.Add("전체 화면 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.Desktop));menu.Items.Add("고정 영역 캡처",null,async(_,_)=>await SafeCapture(CaptureMode.FixedRegion));menu.Items.Add(new Forms.ToolStripSeparator());menu.Items.Add("설정",null,async(_,_)=>await SettingsAsync());menu.Items.Add("종료",null,async(_,_)=>await ExitAsync());tray.ContextMenuStrip=menu;tray.DoubleClick+=(_,_)=>Show();
         TrayMenuIcons.Apply(menu);
         diagnostics?.Write($"tray.created context={SynchronizationContext.Current?.GetType().FullName}");diagnostics?.Write("editor.show.begin");window.Show();diagnostics?.Write("editor.show.end");if(startInTray)window.Hide();
     }
@@ -61,16 +62,54 @@ public sealed class AppHost : IDisposable
     private async Task CaptureAsync(CaptureMode mode)
     {
         if(window.IsBusy)return;
-        using var capture=new CaptureSession(new WindowsCaptureDesktop(window));
-        await RunCaptureAsync(async()=>
+        if(fixedRegion?.IsMouseCaptureWithin==true)return;
+        if(mode==CaptureMode.FixedRegion&&fixedRegion is null){OpenFixedRegion();return;}
+        var border=fixedRegion;var region=border?.Region;
+        using var capture=new CaptureSession(new WindowsCaptureDesktop(window,border));
+        try
         {
-            await window.FlushAsync();var frame=await capture.CaptureAsync(mode);
-            return await new CaptureCoordinator().SelectAsync(frame,mode,window.ShowRegionGuides);
-        },async selected=>
+            if(border is not null)border.IsEnabled=false;
+            await RunCaptureAsync(async()=>
+            {
+                await window.FlushAsync();
+                if(mode==CaptureMode.FixedRegion)
+                {
+                    var screens=Forms.Screen.AllScreens.Select(screen=>{var b=screen.Bounds;return new SnapBerry.Core.PixelRect(b.X,b.Y,b.Width,b.Height);}).ToArray();
+                    if(region is not {} area||!FixedRegionGeometry.IsCovered(area,screens))
+                        throw new InvalidOperationException("고정 영역이 화면 밖에 있거나 모니터 사이의 빈 공간을 포함합니다. 테두리를 옮기거나 크기를 줄여 주세요.");
+                }
+                var frame=await capture.CaptureAsync(mode);
+                return mode==CaptureMode.FixedRegion?CaptureService.CropFixedRegion(frame,region!.Value)
+                    :await new CaptureCoordinator().SelectAsync(frame,mode,window.ShowRegionGuides);
+            },async selected=>
+            {
+                var (record,image)=await CreateRecordAsync(selected,mode);
+                await window.OpenNewAsync(record,image);
+            },Show,window.SetBusy);
+        }
+        finally
         {
-            var (record,image)=await CreateRecordAsync(selected,mode);
-            await window.OpenNewAsync(record,image);
-        },Show,window.SetBusy);
+            if(border is not null&&fixedRegion==border){border.IsEnabled=true;border.Show();}
+        }
+    }
+    private void OpenFixedRegion()
+    {
+        var value=settings.Load();var work=Forms.Screen.AllScreens.OrderByDescending(screen=>screen.Primary).Select(screen=>
+        {var b=screen.WorkingArea;return new SnapBerry.Core.PixelRect(b.X,b.Y,b.Width,b.Height);}).ToArray();
+        var border=new FixedRegionWindow(FixedRegionGeometry.Restore(value.FixedRegion,work),value.FixedRegionKey){Icon=window.Icon};
+        border.CaptureRequested=()=>SafeCapture(CaptureMode.FixedRegion);
+        border.RegionChanged+=RememberFixedRegion;
+        border.Failed+=error=>{diagnostics?.Write("fixedRegion.failed",error);Show();MessageBox.Show(window,error.Message,"고정 영역 캡처",MessageBoxButton.OK,MessageBoxImage.Warning);};
+        border.Closed+=(_,_)=>{if(fixedRegion==border)fixedRegion=null;};
+        fixedRegion=border;
+        try{border.Show();RememberFixedRegion(border.Region);}
+        catch{border.Close();throw;}
+    }
+    private void RememberFixedRegion(SnapBerry.Core.PixelRect region)
+    {
+        try{settings.Save(settings.Load() with{FixedRegion=region});}
+        catch(Exception error)when(error is IOException or UnauthorizedAccessException)
+        {diagnostics?.Write("fixedRegion.settings.failed",error);tray.ShowBalloonTip(3000,"고정 영역 위치 저장 실패",error.Message,Forms.ToolTipIcon.Warning);}
     }
     // 선택 영역을 전체 화면 프레임에서 분리한 독립 비트맵으로 만들고, PNG 인코딩은 UI 스레드 밖에서 수행한다.
     internal static Task<(CaptureRecord Record,BitmapSource Image)> CreateRecordAsync(CaptureFrame selected,CaptureMode mode)=>Task.Run(()=>
@@ -94,7 +133,7 @@ public sealed class AppHost : IDisposable
     }
     private void RegisterSettings(AppSettings value)
     {
-        var failures=new List<string>();foreach(var (mode,key) in new[]{(CaptureMode.Region,value.RegionKey),(CaptureMode.Window,value.WindowKey),(CaptureMode.Desktop,value.DesktopKey)})
+        var failures=new List<string>();foreach(var (mode,key) in new[]{(CaptureMode.Region,value.RegionKey),(CaptureMode.Window,value.WindowKey),(CaptureMode.Desktop,value.DesktopKey),(CaptureMode.FixedRegion,value.FixedRegionKey)})
         {var result=hotkeys!.TryReplace(mode,key);diagnostics?.Write($"hotkey.binding mode={mode} binding={key} success={result.Success} error={result.Error}");if(!result.Success)failures.Add($"{key}: {result.Error}");}
         if(failures.Count>0)window.Dispatcher.BeginInvoke(()=>MessageBox.Show(window,string.Join(Environment.NewLine,failures),"단축키 설정",MessageBoxButton.OK,MessageBoxImage.Information));
     }
@@ -109,13 +148,14 @@ public sealed class AppHost : IDisposable
             {
                 hotkeys.UnregisterAll();
                 var dialog=new SettingsWindow(previous,inspectBinding:hotkeys.CheckAvailability);dialog.ConfigureOwner(window);if(dialog.ShowDialog()!=true)return;var proposed=dialog.Result!;
-                foreach(var (mode,key) in new[]{(CaptureMode.Region,proposed.RegionKey),(CaptureMode.Window,proposed.WindowKey),(CaptureMode.Desktop,proposed.DesktopKey)})
+                foreach(var (mode,key) in new[]{(CaptureMode.Region,proposed.RegionKey),(CaptureMode.Window,proposed.WindowKey),(CaptureMode.Desktop,proposed.DesktopKey),(CaptureMode.FixedRegion,proposed.FixedRegionKey)})
                 {var result=hotkeys.TryReplace(mode,key);if(!result.Success)throw new InvalidOperationException(result.Error);}
                 ApplySettings(previous,proposed,settings.Save,StartupService.SetEnabled);saved=true;window.ReloadSettings();
                 tray.ContextMenuStrip!.Renderer=new TrayMenuRenderer(proposed.Theme);
+                fixedRegion?.UpdateShortcut(proposed.FixedRegionKey);
             }
             finally{if(!saved){hotkeys.UnregisterAll();RegisterSettings(previous);}}
-        },window.SetBusy,e=>MessageBox.Show(window,e.Message,"설정 저장 실패"));
+        },value=>{window.SetBusy(value);if(fixedRegion is not null)fixedRegion.IsEnabled=!value;},e=>MessageBox.Show(window,e.Message,"설정 저장 실패"));
         return Task.CompletedTask;
     }
     internal static void RunSettings(Action action,Action<bool> setBusy,Action<Exception> reportError)
@@ -143,5 +183,5 @@ public sealed class AppHost : IDisposable
         if(window.IsBusy)return;try{window.SetBusy(true);await window.FlushAsync();window.CloseForExit();Dispose();Application.Current.Shutdown();}
         catch(Exception e){window.SetBusy(false);Show();MessageBox.Show(window,"이력을 저장하지 못했습니다. 다시 시도해 주세요.\n"+e.Message,"종료 취소");}
     }
-    public void Dispose(){editorMarker?.Dispose();hotkeys?.Dispose();source?.RemoveHook(WndProc);tray.Visible=false;tray.ContextMenuStrip?.Dispose();tray.Dispose();trayIcon.Dispose();}
+    public void Dispose(){fixedRegion?.Close();editorMarker?.Dispose();hotkeys?.Dispose();source?.RemoveHook(WndProc);tray.Visible=false;tray.ContextMenuStrip?.Dispose();tray.Dispose();trayIcon.Dispose();}
 }

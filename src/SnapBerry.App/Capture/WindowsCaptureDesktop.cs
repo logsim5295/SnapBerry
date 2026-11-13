@@ -10,11 +10,11 @@ internal sealed class WindowsCaptureDesktop : ICaptureDesktop
 {
     private readonly Window editor;
     private readonly Window[] windows;
-    public WindowsCaptureDesktop(Window editor)
+    public WindowsCaptureDesktop(Window editor,Window? fixedRegion=null)
     {
         this.editor=editor;
         // 작업 중 상태가 스티커 선택창을 숨기기 전에 소유 창도 전환 효과 억제 대상으로 확보한다.
-        windows=editor.OwnedWindows.Cast<Window>().Prepend(editor).ToArray();
+        windows=editor.OwnedWindows.Cast<Window>().Prepend(editor).Concat(fixedRegion is null?[]:new[]{fixedRegion}).Distinct().ToArray();
     }
     public IDisposable SuppressTransitions()=>new WindowTransitionScope(
         windows.Select(window=>new WindowInteropHelper(window).Handle).Where(handle=>handle!=IntPtr.Zero),new DwmTransitions());

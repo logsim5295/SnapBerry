@@ -39,4 +39,10 @@ public sealed class CaptureService
         // 선택 영역을 데스크톱 안으로 제한한 다음 비트맵 원점 기준으로 변환한다.
         var rect=ValidateRegion(selection,frame.DesktopBounds);var image=new CroppedBitmap(frame.Image,new System.Windows.Int32Rect(rect.X-frame.DesktopBounds.X,rect.Y-frame.DesktopBounds.Y,rect.Width,rect.Height));image.Freeze();return new(image,rect);
     }
+    internal static CaptureFrame CropFixedRegion(CaptureFrame frame,PixelRect selection)
+    {
+        if(!FixedRegionGeometry.IsValid(selection)||selection.Intersect(frame.DesktopBounds)!=selection)
+            throw new InvalidOperationException("고정 영역이 화면 밖에 있습니다. 테두리 위치와 크기를 조절해 주세요.");
+        return Crop(frame,selection);
+    }
 }

@@ -30,9 +30,9 @@ public class CaptureRibbonTests
             Assert.NotNull(((RibbonGroup)w.FindName("SettingsGroup")).LargeImageSource);
             var settings=Assert.IsType<RibbonButton>(w.FindName("RibbonSettings"));Assert.NotNull(settings.LargeImageSource);var opened=false;w.SettingsRequested=()=>{opened=true;return Task.CompletedTask;};settings.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));Assert.True(opened);
             Assert.Null(w.FindName("CaptureButton"));Assert.Null(w.FindName("CaptureModeBox"));var requested=new List<CaptureMode>();w.CaptureRequested=mode=>{requested.Add(mode);return Task.CompletedTask;};
-            foreach(var name in new[]{"RegionCaptureButton","WindowCaptureButton","DesktopCaptureButton"})
+            foreach(var name in new[]{"RegionCaptureButton","WindowCaptureButton","DesktopCaptureButton","FixedRegionCaptureButton"})
             {var button=Assert.IsType<RibbonButton>(w.FindName(name));Assert.NotNull(button.LargeImageSource);button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));}
-            Assert.Equal(new[]{CaptureMode.Region,CaptureMode.Window,CaptureMode.Desktop},requested);
+            Assert.Equal(new[]{CaptureMode.Region,CaptureMode.Window,CaptureMode.Desktop,CaptureMode.FixedRegion},requested);
             w.SetBusy(true);Assert.False(((RibbonButton)w.FindName("RegionCaptureButton")).IsEnabled);w.SetBusy(false);Assert.True(((RibbonButton)w.FindName("RegionCaptureButton")).IsEnabled);
         }
         finally{w.CloseForExit();TestFiles.DeleteDirectory(path);}

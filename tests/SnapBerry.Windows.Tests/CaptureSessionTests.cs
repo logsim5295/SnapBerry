@@ -12,6 +12,7 @@ public class CaptureSessionTests
     [InlineData(CaptureMode.Region)]
     [InlineData(CaptureMode.Window)]
     [InlineData(CaptureMode.Desktop)]
+    [InlineData(CaptureMode.FixedRegion)]
     public async Task RegionSelectionWaitsForStartMenuToCloseAfterFreezingPixels(CaptureMode mode)
     {
         var desktop=new Desktop();

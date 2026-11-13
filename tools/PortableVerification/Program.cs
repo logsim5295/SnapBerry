@@ -7,7 +7,8 @@ using System.Text.Json;
 
 // 앱을 실행하지 않고 실제 단일 EXE의 어셈블리와 저장 호환성을 검사한다.
 var root = Path.GetFullPath(args.Length > 0 ? args[0] : ".");
-var exe = File.ReadAllBytes(Path.Combine(root, "dist/portable-win-x64/SnapBerry.exe"));
+var publishDirectory = args.Length > 1 ? Path.GetFullPath(args[1]) : Path.Combine(root,"dist/portable-win-x64");
+var exe = File.ReadAllBytes(Path.Combine(publishDirectory,"SnapBerry.exe"));
 byte[] signature = Convert.FromHexString("8b1202b96a612038727b930214d7a03213f5b9e6efae3318ee3b2dce24b36aae");
 var marker = exe.AsSpan().IndexOf(signature);
 Require(marker >= 8, "단일 파일 번들 서명이 없습니다.");
@@ -64,7 +65,7 @@ var mode = core.GetType("SnapBerry.Core.StepSequenceMode", true)!;
 Require((string)formatter.GetMethod("Format")!.Invoke(null, [27L, Enum.ToObject(mode, 1)])! == "aa", "난독화 Core 실행 결과가 다릅니다.");
 foreach (var (assembly, typeName, json) in new[] {
     (core, "SnapBerry.Core.Annotation", "{\"Text\":\"호환성\",\"X\":12,\"Style\":{\"Color\":\"#123456\"}}"),
-    (app, "SnapBerry.App.Settings.AppSettings", "{\"RegionKey\":\"Ctrl+Alt+7\",\"HistoryPanelWidth\":321,\"LastSaveFormat\":2}"),
+    (app, "SnapBerry.App.Settings.AppSettings", "{\"RegionKey\":\"Ctrl+Alt+7\",\"HistoryPanelWidth\":321,\"LastSaveFormat\":2,\"FixedRegionKey\":\"Ctrl+Alt+8\",\"FixedRegion\":{\"X\":-1200,\"Y\":80,\"Width\":640,\"Height\":480}}"),
     (app, "SnapBerry.App.Library.CaptureRecord", "{\"Name\":\"업무 결과 Project\",\"Width\":640,\"Height\":480}"),
     (app, "SnapBerry.App.Library.CaptureRecord", "{\"Width\":640,\"Height\":480,\"ResizeSize\":{\"Width\":320,\"Height\":240},\"Annotations\":[{\"Text\":\"test\"}]}" ) })
 {

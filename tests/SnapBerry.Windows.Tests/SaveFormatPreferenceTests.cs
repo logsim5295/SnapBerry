@@ -56,8 +56,12 @@ public class SaveFormatPreferenceTests
         var window = new EditorWindow(new(Path.Combine(folder, "Library")), settings, picker);
         try
         {
+            // 편집기를 연 뒤 별도 고정 영역 창이 저장한 위치를 내보내기가 덮어쓰지 않아야 한다.
+            var fixedRegion=new SnapBerry.Core.PixelRect(-1200,80,640,480);
+            settings.Save(settings.Load() with{FixedRegion=fixedRegion});
             OpenImage(window); Pump(window.SaveAsync());
             Assert.Equal(expected, settings.Load().LastSaveFormat);
+            Assert.Equal(fixedRegion,settings.Load().FixedRegion);
             Assert.Equal("Ctrl+Alt+7", settings.Load().RegionKey);
             Pump(window.SaveAsync());
             Assert.Equal("최종 결과" + defaultExtension, picker.SuggestedNames[1]);

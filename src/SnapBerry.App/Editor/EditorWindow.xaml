@@ -50,6 +50,7 @@
      <r:RibbonButton x:Name="RegionCaptureButton" Label="영역 캡처" Tag="Region" ToolTip="영역 캡처" Click="CaptureClick"/>
      <r:RibbonButton x:Name="WindowCaptureButton" Label="창 캡처" Tag="Window" ToolTip="창 캡처" Click="CaptureClick"/>
      <r:RibbonButton x:Name="DesktopCaptureButton" Label="전체 화면 캡처" Tag="Desktop" ToolTip="전체 화면 캡처" Click="CaptureClick"/>
+     <r:RibbonButton x:Name="FixedRegionCaptureButton" Label="고정 영역 캡처" Tag="FixedRegion" ToolTip="같은 위치와 크기로 반복 캡처" Click="CaptureClick"/>
     </editor:ThemedRibbonGroup>
     <editor:ThemedRibbonGroup x:Name="ToolsPanel" Header="그리기">
      <r:RibbonToggleButton Label="선택" Tag="Select" IsChecked="True" ToolTip="선택" Click="ToolClick"/>
@@ -126,7 +127,9 @@
   <Grid x:Name="HistorySearchPanel" Grid.Row="1" Margin="8,0,8,8"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
    <TextBox x:Name="HistorySearchBox" Style="{StaticResource PurpleTextBoxStyle}" Height="32" Padding="7,3" VerticalContentAlignment="Center" ToolTip="이름 또는 표시된 날짜로 검색" AutomationProperties.Name="캡처 이력 이름 또는 날짜 검색" TextChanged="HistorySearchChanged"/>
    <TextBlock Text="이름·날짜 검색" Foreground="{DynamicResource Theme.MutedText}" Margin="8,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"><TextBlock.Style><Style TargetType="TextBlock"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding Text, ElementName=HistorySearchBox}" Value=""><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
-   <Button Grid.Column="1" Content="×" ToolTip="검색 지우기" AutomationProperties.Name="검색 지우기" Click="ClearHistorySearchClick"/>
+   <Button Grid.Column="1" Width="32" Padding="0" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" ToolTip="검색 지우기" AutomationProperties.Name="검색 지우기" Click="ClearHistorySearchClick">
+    <Path Data="M 1,1 L 11,11 M 11,1 L 1,11" Width="12" Height="12" Stretch="Uniform" StrokeThickness="1.5" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" IsHitTestVisible="False"/>
+   </Button>
   </Grid>
   <ListBox x:Name="HistoryList" Grid.Row="2" Style="{StaticResource HistoryListStyle}" HorizontalContentAlignment="Stretch" SelectionMode="Extended" BorderThickness="0" Background="{DynamicResource Theme.Surface}" ItemTemplate="{StaticResource CaptureItem}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.ScrollChanged="HistoryScrollChanged" VirtualizingPanel.IsVirtualizing="True" PreviewMouseLeftButtonUp="HistorySingleClick" KeyDown="HistoryKeyDown"/>
   <TextBlock x:Name="HistoryEmptyText" Grid.Row="2" Text="캡처 이력이 없습니다." Visibility="Collapsed" Foreground="{DynamicResource Theme.MutedText}" TextWrapping="Wrap" Margin="14,12" IsHitTestVisible="False"/>

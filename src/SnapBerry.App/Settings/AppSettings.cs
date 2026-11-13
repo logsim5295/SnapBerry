@@ -16,6 +16,8 @@ public sealed record AppSettings
     public string RegionKey { get; init; } = "Ctrl+Shift+1";
     public string WindowKey { get; init; } = "Ctrl+Shift+2";
     public string DesktopKey { get; init; } = "Ctrl+Shift+3";
+    public string FixedRegionKey { get; init; } = "Ctrl+Shift+4";
+    public SnapBerry.Core.PixelRect? FixedRegion { get; init; }
     public string LastSaveDirectory { get; init; } = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
     public ExportFormat LastSaveFormat { get; init; } = ExportFormat.Png;
 }

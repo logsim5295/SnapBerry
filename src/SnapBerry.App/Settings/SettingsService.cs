@@ -17,7 +17,8 @@ public sealed class SettingsService(string directory)
             {
                 Theme=Enum.IsDefined(value.Theme)?value.Theme:AppTheme.Light,
                 LastSaveFormat=Enum.IsDefined(value.LastSaveFormat)?value.LastSaveFormat:ExportFormat.Png,
-                StickerWindow=value.StickerWindow is {IsValid:true}?value.StickerWindow:null
+                StickerWindow=value.StickerWindow is {IsValid:true}?value.StickerWindow:null,
+                FixedRegion=value.FixedRegion is {} region&&Capture.FixedRegionGeometry.IsValid(region)?region:null
             };
         }
         catch (JsonException)
