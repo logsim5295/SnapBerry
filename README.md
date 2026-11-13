@@ -121,6 +121,8 @@ dotnet publish src/SnapBerry.App/SnapBerry.App.csproj -c Release -p:PublishProfi
 
 로컬 게시 결과는 `dist/portable-win-x64/SnapBerry.exe`에 생성됩니다. 사용자에게 제공하는 배포본은 [GitHub Releases](https://github.com/logsim5295/SnapBerry/releases/latest)에서 받습니다. Windows x64용이며 DLL과 .NET 실행 환경을 포함합니다. 실행 시 네이티브 구성 요소는 `%TEMP%/.net`에 자동 추출되므로 임시 폴더 쓰기 권한이 필요합니다. 별도 설치나 관리자 권한은 필요하지 않습니다.
 
+Windows 빌드 작업은 일반 Release 빌드 후 위 Portable 게시까지 실행하여 이 폴더의 EXE를 최신 상태로 갱신합니다. `dotnet build`만 실행하면 이 파일은 갱신되지 않습니다. 대상 EXE가 실행 중이면 트레이 메뉴에서 종료한 뒤 같은 폴더에 게시하며, 최종 결과를 임시 `artifacts` 폴더로 대체하지 않습니다. 릴리스 태그의 커밋을 로컬에서 게시할 때는 `-p:Version=1.1.11`처럼 해당 태그의 버전을 지정합니다.
+
 Portable 게시 과정에서 저장소 로컬 도구인 Obfuscar 2.2.50을 자동 복원하고, 앱과 Core DLL의 비공개 이름 변경 및 문자열 숨김을 적용한 뒤 단일 EXE로 묶습니다. 난독화 실패 시 게시도 실패합니다. 최초 게시에는 NuGet 접근이 필요합니다. 일반 Release DLL은 수정하지 않습니다.
 
 WPF/BAML 연결과 네이티브 진입점은 `build/obfuscar.xml`의 제외 규칙으로 보존하며, 공개 API 이름은 JSON 저장 형식과 바인딩 호환성을 위해 유지합니다. 이는 기본 난독화이며 디컴파일을 완전히 막거나 모든 공개 이름을 숨기는 보호는 아닙니다. 이름 매핑은 `src/SnapBerry.App/obj/Release/net10.0-windows/win-x64/portable-obfuscation/output/Mapping.txt`에 남으며 배포하지 않습니다. 디버그 심볼도 EXE에 포함하지 않습니다.
